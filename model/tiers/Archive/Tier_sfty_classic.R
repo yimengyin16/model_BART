@@ -1,4 +1,4 @@
-# Prepare model inputs for tier "sftyAll"
+# Prepare model inputs for tier "sfty_classic"
 
 
 
@@ -35,15 +35,36 @@
 
 ##' Service retirement 
 #'  
-#'  - Use benefit rules based on safety and POFF classic members with 
-#'     - safety: 2.5%55 (before 2011)
-#'     - POFF:   3%55 or 3%50 (before 2011)  
-#'     
-#'     Use 50/5  3%@50 (constant 3%) for now, may want to adjust the benefit factor downward
-#'     to account for the lower benefit  
-#'     
-#'  - Benefit factor will adjusted downward to take into account PEPRA members
-#'  - Try using a single retirement age
+#'  - Benefit rules: Plan policy 
+#'     - safety (37%): 
+#'         -* 2.5%55 for Classic members before Jan 15, 2011)
+#'         -  2.5%@60 or 2%@55 for Classic on or after Jan 15, 2011  (Only applied for two years?)
+#'         -* 2%@57 for PEPRA members (after Jan 1 2013)
+#'     - POFF (53%)   
+#'         -* 3%@55 or 3%@50 for Classic before Jan 15, 2011
+#'         -  2.5%@55 for Classic (except firefighters) on or after Jan 15, 2011  (Only applied for two years?)
+#'         -  3%@55 for Classic on or after Oct 31, 2010
+#'         -* 2.5%@57 or 2.7@57 for PEPRA members (after Jan 1 2013) 
+#'     - CHP (10%)
+#'         -* 3%@50 for Classic before Oct 31, 2010
+#          -  3%@55 for Classic on or after Oct 31, 2010
+#          -* 2.7%@57 for PEPRA members (after Jan 1 2013)  
+#'
+#'
+#'  - Benefit rules: model 
+#'         - Classic members: 3%@50 constant, may be need to adjust downward
+#'         - PEPRA members:   2.5%@57, benefit reduction follows POFF ( -0.2/7 each year before 57)  
+#'
+#'
+#'  - Final compensation 
+#'      - The plan policy: 
+#'        - 12 month for members who joined before 1/15/2011
+#'        - 36 month for members who joined on or after 1/15/2011)
+#'      - Model:
+#'        - 12 month (1-year in the model) for classic members.
+#'        - 36 month (3-year in the model) for pepra members.  
+#'        - Do not model salary cap and SS offset for now, do calibration instead.
+#'  
 #'  
 #'  Eligibility: 
 #'   - age>=50 & yos>=5
@@ -52,7 +73,7 @@
 #'  
 #'  Benefit factor: constant 3%, adjust downward for calibration
 #'  Final compensation: 12 month
-
+#'
 # Deferred retirement  
 #' start receiving benefit at 59
 #' - Simplification: do not model refund upon separation but take into account its separation rates
@@ -86,11 +107,18 @@
 #  -  POFF:   3522647266, 426055155
 #  -  CHP:    871895121,  96865133
 # (96865133 + 426055155 + 256385863)/(2316124913+3522647266+871895121) = 0.1161
+#'
+#' Model:
+#'   - use the same EEC rate of 11.61% for both Classic and PEPRA members.    
+#'      
+
+
 
 # Other tier params to add
 
 #' Notes on group weights
-#'  - weights are constructed based on member data provided in AV2018
+#'  - weights are constructed based on member data provided in AV2018 and 
+#'    CAFR2018-19 ep159 (classic vs pepra)
 #' Active members (AV2018 np15-19)
 #   - safety-classic	0.2605
 #   - safety-pepra	  0.1078
@@ -98,6 +126,16 @@
 #   - poff-pepra	    0.1570
 #   - chp-classic	    0.0672
 #   - chp-pepra	      0.0278
+#
+# How group specific data are aggregated:
+#  - Retirement rates are aggregated using classic/PEPRA specific weights.
+#  - For other decrements:
+#    - classic: Aggregated using the weights for classic members only
+#    - PEPRA: Aggregated using total weight of classic and PEPRA for each type of members (safety/poff/chp)
+#             Because the total weights may better reflect the weights in the long run when the PEPRA
+#             tier becomes more mature. 
+
+
 
 # Notes on gender ratio:
 # ?90% male and 10% female for all calculations for safety members. 
@@ -105,7 +143,7 @@
 
 # Need to combine two types of disability mortality rates: using weighted average
 #  - assume 50% of disability retirement is job-related
-# -  used in df_qxm.post_tier and df_qxm.post_proj_tier
+#  -used in df_qxm.post_tier and df_qxm.post_proj_tier
 
 # Assumed inflation in salary scale: salScale.infl = 0.0275
 
@@ -128,7 +166,7 @@ range_ea  <- 20:74  # max retirement age is assumed to be 75 (qxr = 1 at age 75 
 
 # Tier specific parameters
 
-tier_name <- "sftyAll"
+tier_name <- "sfty_classic"
 age_vben  <- 59 # assumed age of starting receiving deferred retirement benefits
 v.year    <- 5
 fasyears  <- 1  # based on policy before PEPRA
@@ -162,12 +200,12 @@ grp_include <- grp_include[str_detect(grp_include , "sfty|poff|chp")]
 wgts <- tibble(grp = grp_include, wgt = 0)
 
 wgts[wgts$grp == "sfty_classic", "wgt"] <-  0.2605
-wgts[wgts$grp == "sfty_pepra",   "wgt"] <-  0.1078
+#wgts[wgts$grp == "sfty_pepra",   "wgt"] <-  0.1078
 wgts[wgts$grp == "poff_classic", "wgt"] <-  0.3796
-wgts[wgts$grp == "poff_pepra_1", "wgt"] <-  0.1570 * 0.5   # 2.5%@57
-wgts[wgts$grp == "poff_pepra_2", "wgt"] <-  0.1570 * 0.5   # 2.7%@57
+#wgts[wgts$grp == "poff_pepra_1", "wgt"] <-  0.1570 * 0.5   # 2.5%@57
+#wgts[wgts$grp == "poff_pepra_2", "wgt"] <-  0.1570 * 0.5   # 2.7%@57
 wgts[wgts$grp == "chp_classic",  "wgt"] <-  0.0672
-wgts[wgts$grp == "chp_pepra",    "wgt"] <-  0.0278
+#wgts[wgts$grp == "chp_pepra",    "wgt"] <-  0.0278
 # wgts;sum(wgts$wgt)
 
 ## calculate weighted average
@@ -192,9 +230,9 @@ grp_include <- grp_include[str_detect(grp_include, "sfty|poff|chp")]
 # weight for each group
 wgts <- tibble(grp = grp_include, wgt = 0)
 
-wgts[wgts$grp == "sfty","wgt"] <- 0.2605 + 0.1078
-wgts[wgts$grp == "poff","wgt"] <- 0.3796 + 0.1570
-wgts[wgts$grp == "chp","wgt"]  <- 0.0672 + 0.0278
+wgts[wgts$grp == "sfty","wgt"] <- 0.2605 # + 0.1078
+wgts[wgts$grp == "poff","wgt"] <- 0.3796 # + 0.1570
+wgts[wgts$grp == "chp","wgt"]  <- 0.0672 # + 0.0278
 # wgts
 
 ## calculate weighted average
@@ -224,9 +262,9 @@ grp_include <- grp_include[str_detect(grp_include, "sfty|poff|chp")]
 # weight for each group
 wgts <- tibble(grp = grp_include, wgt = 0)
 
-wgts[wgts$grp == "sfty","wgt"] <- 0.2605 + 0.1078
-wgts[wgts$grp == "poff","wgt"] <- 0.3796 + 0.1570
-wgts[wgts$grp == "chp","wgt"]  <- 0.0672 + 0.0278
+wgts[wgts$grp == "sfty","wgt"] <- 0.2605 # + 0.1078
+wgts[wgts$grp == "poff","wgt"] <- 0.3796 # + 0.1570
+wgts[wgts$grp == "chp","wgt"]  <- 0.0672 # + 0.0278
 # wgts
 
 ## calculate weighted average
@@ -254,9 +292,9 @@ grp_include <- grp_include[str_detect(grp_include, "sfty|poff|chp")]
 # weight for each group
 wgts <- tibble(grp = grp_include, wgt = 0)
 
-wgts[wgts$grp == "sfty","wgt"] <- 0.2605 + 0.1078
-wgts[wgts$grp == "poff","wgt"] <- 0.3796 + 0.1570
-wgts[wgts$grp == "chp","wgt"]  <- 0.0672 + 0.0278
+wgts[wgts$grp == "sfty","wgt"] <- 0.2605 # + 0.1078
+wgts[wgts$grp == "poff","wgt"] <- 0.3796 # + 0.1570
+wgts[wgts$grp == "chp","wgt"]  <- 0.0672 # + 0.0278
 # wgts
 
 ## calculate weighted average
@@ -484,9 +522,9 @@ grp_include <- grp_include[str_detect(grp_include, "sfty|poff|chp")]
 # weight for each group
 wgts <- tibble(grp = grp_include, wgt = 0)
 
-wgts[wgts$grp == "sfty","wgt"] <- 0.2605 + 0.1078
-wgts[wgts$grp == "poff","wgt"] <- 0.3796 + 0.1570
-wgts[wgts$grp == "chp","wgt"]  <- 0.0672 + 0.0278
+wgts[wgts$grp == "sfty","wgt"] <- 0.2605 # + 0.1078
+wgts[wgts$grp == "poff","wgt"] <- 0.3796 # + 0.1570
+wgts[wgts$grp == "chp","wgt"]  <- 0.0672 # + 0.0278
 # wgts
 
 ## calculate weighted average
@@ -543,6 +581,18 @@ df_n_actives_tier <-
 # model/target: 6710663988/(2316124913 + 3522647266 + 871895121) = 99.99%
 
 
+# Keep classic members only
+#  assume 
+#    - members with yos <= 4 are all pepra members
+#    - 50% of members with yos == 5 are pepra members
+#    - the rest are classic membrs 
+
+df_n_actives_tier %<>% 
+  mutate(nactives = case_when(
+    yos <= 4 ~ 0,
+    yos == 5 ~ nactives * 0.5,
+    TRUE ~ nactives
+  ))
 
 
 ## Service retirees
@@ -576,13 +626,6 @@ df_n_servRet_tier <-
 # (df_n_servRet_tier$n_servRet*df_n_servRet_tier$benefit_servRet) %>% sum
 # model/target:2492264817/2492264816 = 100%
 
-# df_n_servRet_fillin %>%
-#   filter(grp %in% grp_include) %>%
-#   summarise(age_avg = weighted.mean(age, n_servRet))
-# 
-# df_n_beneficiaries_fillin %>%
-#   filter(grp %in% grp_include) %>%
-#   summarise(age_avg = weighted.mean(age, n_beneficiaries))
 
 
 

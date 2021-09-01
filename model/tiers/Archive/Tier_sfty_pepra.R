@@ -1,5 +1,4 @@
-# Prepare model inputs for tier "sfty_classic"
-
+# Prepare model inputs for tier "sfty_pepra"
 
 
 #*******************************************************************************
@@ -22,7 +21,6 @@
 #*******************************************************************************
 #                               Tier specification  ####
 #*******************************************************************************
-
 
 ##' Members included 
 #'  - state safety classic
@@ -65,7 +63,6 @@
 #'        - 36 month (3-year in the model) for pepra members.  
 #'        - Do not model salary cap and SS offset for now, do calibration instead.
 #'  
-#'  
 #'  Eligibility: 
 #'   - age>=50 & yos>=5
 #'  
@@ -73,7 +70,9 @@
 #'  
 #'  Benefit factor: constant 3%, adjust downward for calibration
 #'  Final compensation: 12 month
-#'
+
+
+
 # Deferred retirement  
 #' start receiving benefit at 59
 #' - Simplification: do not model refund upon separation but take into account its separation rates
@@ -107,12 +106,6 @@
 #  -  POFF:   3522647266, 426055155
 #  -  CHP:    871895121,  96865133
 # (96865133 + 426055155 + 256385863)/(2316124913+3522647266+871895121) = 0.1161
-#'
-#' Model:
-#'   - use the same EEC rate of 11.61% for both Classic and PEPRA members.    
-#'      
-
-
 
 # Other tier params to add
 
@@ -136,14 +129,13 @@
 #             tier becomes more mature. 
 
 
-
 # Notes on gender ratio:
 # ?90% male and 10% female for all calculations for safety members. 
 
 
 # Need to combine two types of disability mortality rates: using weighted average
 #  - assume 50% of disability retirement is job-related
-#  -used in df_qxm.post_tier and df_qxm.post_proj_tier
+# -  used in df_qxm.post_tier and df_qxm.post_proj_tier
 
 # Assumed inflation in salary scale: salScale.infl = 0.0275
 
@@ -166,13 +158,13 @@ range_ea  <- 20:74  # max retirement age is assumed to be 75 (qxr = 1 at age 75 
 
 # Tier specific parameters
 
-tier_name <- "poff_classic"
+tier_name <- "sfty_pepra"
 age_vben  <- 59 # assumed age of starting receiving deferred retirement benefits
 v.year    <- 5
 fasyears  <- 1  # based on policy before PEPRA
-bfactor   <- 0.03
+bfactor   <- 0.025
 cola_assumed <- 0.02 # assumed cola rates for valuation  
-EEC_rate  <- 0.12
+EEC_rate  <- 0.116
 
 
 
@@ -194,18 +186,18 @@ load(paste0(dir_data, "Data_CalPERS_demographics_20180630_fillin.RData"))
 
 # groups included
 grp_include <- df_qxr_imputed$grp %>% unique
-grp_include <- grp_include[str_detect(grp_include , "poff")]
+grp_include <- grp_include[str_detect(grp_include , "sfty|poff|chp")]
 
 # weight for each group
 wgts <- tibble(grp = grp_include, wgt = 0)
 
 #wgts[wgts$grp == "sfty_classic", "wgt"] <-  0.2605
-#wgts[wgts$grp == "sfty_pepra",   "wgt"] <-  0.1078
-wgts[wgts$grp == "poff_classic", "wgt"] <-  0.3796
-#wgts[wgts$grp == "poff_pepra_1", "wgt"] <-  0.1570 * 0.5   # 2.5%@57
-#wgts[wgts$grp == "poff_pepra_2", "wgt"] <-  0.1570 * 0.5   # 2.7%@57
+wgts[wgts$grp == "sfty_pepra",   "wgt"] <-  0.1078
+#wgts[wgts$grp == "poff_classic", "wgt"] <-  0.3796
+wgts[wgts$grp == "poff_pepra_1", "wgt"] <-  0.1570 * 0.5   # 2.5%@57
+wgts[wgts$grp == "poff_pepra_2", "wgt"] <-  0.1570 * 0.5   # 2.7%@57
 #wgts[wgts$grp == "chp_classic",  "wgt"] <-  0.0672
-#wgts[wgts$grp == "chp_pepra",    "wgt"] <-  0.0278
+wgts[wgts$grp == "chp_pepra",    "wgt"] <-  0.0278
 # wgts;sum(wgts$wgt)
 
 ## calculate weighted average
@@ -214,7 +206,7 @@ df_qxr_tier <-
   filter(grp %in% grp_include) %>% 
   left_join(wgts, by = "grp") %>% 
   group_by(age, yos) %>% 
-  summarise(qxr = weighted.mean(qxr, wgt), .groups = "drop" ) %>% 
+  summarise(qxr = weighted.mean(qxr, wgt), .groups = "rowwise") %>% 
   mutate(grp = tier_name) %>% 
   relocate(grp) %>% 
   ungroup()
@@ -225,14 +217,14 @@ df_qxr_tier <-
 
 # groups included
 grp_include <- df_qxd_imputed$grp %>% unique
-grp_include <- grp_include[str_detect(grp_include, "poff")]
+grp_include <- grp_include[str_detect(grp_include, "sfty|poff|chp")]
 
 # weight for each group
 wgts <- tibble(grp = grp_include, wgt = 0)
 
-#wgts[wgts$grp == "sfty","wgt"] <- 0.2605 # + 0.1078
-wgts[wgts$grp == "poff","wgt"] <- 0.3796 # + 0.1570
-#wgts[wgts$grp == "chp","wgt"]  <- 0.0672 # + 0.0278
+wgts[wgts$grp == "sfty","wgt"] <- 0.2605 + 0.1078
+wgts[wgts$grp == "poff","wgt"] <- 0.3796 + 0.1570
+wgts[wgts$grp == "chp","wgt"]  <- 0.0672 + 0.0278
 # wgts
 
 ## calculate weighted average
@@ -257,14 +249,14 @@ df_qxd_tier <-
 
 # groups included
 grp_include <- df_qxt.refund_imputed$grp %>% unique
-grp_include <- grp_include[str_detect(grp_include, "poff")]
+grp_include <- grp_include[str_detect(grp_include, "sfty|poff|chp")]
 
 # weight for each group
 wgts <- tibble(grp = grp_include, wgt = 0)
 
-#wgts[wgts$grp == "sfty","wgt"] <- 0.2605 # + 0.1078
-wgts[wgts$grp == "poff","wgt"] <- 0.3796 # + 0.1570
-#wgts[wgts$grp == "chp","wgt"]  <- 0.0672 # + 0.0278
+wgts[wgts$grp == "sfty","wgt"] <- 0.2605 + 0.1078
+wgts[wgts$grp == "poff","wgt"] <- 0.3796 + 0.1570
+wgts[wgts$grp == "chp","wgt"]  <- 0.0672 + 0.0278
 # wgts
 
 ## calculate weighted average
@@ -287,14 +279,14 @@ df_qxt.refund_tier <-
 
 # groups included
 grp_include <- df_qxt.vest_imputed$grp %>% unique
-grp_include <- grp_include[str_detect(grp_include, "poff")]
+grp_include <- grp_include[str_detect(grp_include, "sfty|poff|chp")]
 
 # weight for each group
 wgts <- tibble(grp = grp_include, wgt = 0)
 
-#wgts[wgts$grp == "sfty","wgt"] <- 0.2605 # + 0.1078
-wgts[wgts$grp == "poff","wgt"] <- 0.3796 # + 0.1570
-#wgts[wgts$grp == "chp","wgt"]  <- 0.0672 # + 0.0278
+wgts[wgts$grp == "sfty","wgt"] <- 0.2605 + 0.1078
+wgts[wgts$grp == "poff","wgt"] <- 0.3796 + 0.1570
+wgts[wgts$grp == "chp","wgt"]  <- 0.0672 + 0.0278
 # wgts
 
 ## calculate weighted average
@@ -447,7 +439,7 @@ decrements_tier  %<>%
   group_by(ea) %>% 
   mutate(
     # Eligibility for full (or greater) retirement benefit
-    elig_servRet_full = ifelse( (age >= 55 & yos >= 5), 1, 0) %>% cumsum,
+    elig_servRet_full = ifelse( (age >= 57 & yos >= 5), 1, 0) %>% cumsum,
     
     # Eligibility for early retirement benefit
     elig_servRet_early = ifelse( (age >= 50 & yos >= 5), 1, 0) %>% cumsum,
@@ -517,14 +509,14 @@ decrements_improvement %<>%
 
 # groups included
 grp_include <- df_salScale.merit_imputed$grp %>% unique
-grp_include <- grp_include[str_detect(grp_include, "poff")]
+grp_include <- grp_include[str_detect(grp_include, "sfty|poff|chp")]
 
 # weight for each group
 wgts <- tibble(grp = grp_include, wgt = 0)
 
-#wgts[wgts$grp == "sfty","wgt"] <- 0.2605 # + 0.1078
-wgts[wgts$grp == "poff","wgt"] <- 0.3796 # + 0.1570
-#wgts[wgts$grp == "chp","wgt"]  <- 0.0672 # + 0.0278
+wgts[wgts$grp == "sfty","wgt"] <- 0.2605 + 0.1078
+wgts[wgts$grp == "poff","wgt"] <- 0.3796 + 0.1570
+wgts[wgts$grp == "chp","wgt"]  <- 0.0672 + 0.0278
 # wgts
 
 ## calculate weighted average
@@ -543,6 +535,7 @@ df_salScale_tier <-
   ungroup()
 
 
+
 #*******************************************************************************
 #                      ## Initial demographics  ####
 #*******************************************************************************
@@ -557,7 +550,7 @@ df_salScale_tier <-
 
 ## groups included 
 grp_include <- df_nactives_fillin$grp %>% unique
-grp_include <- grp_include[str_detect(grp_include, "poff")]
+grp_include <- grp_include[str_detect(grp_include, "sfty|poff|chp")]
 
 
 ## Active members
@@ -580,7 +573,7 @@ df_n_actives_tier <-
 # model/target: 6710663988/(2316124913 + 3522647266 + 871895121) = 99.99%
 
 
-# Keep classic members only
+# Keep PEPRA members only
 #  assume 
 #    - members with yos <= 4 are all pepra members
 #    - 50% of members with yos == 5 are pepra members
@@ -588,17 +581,16 @@ df_n_actives_tier <-
 
 df_n_actives_tier %<>% 
   mutate(nactives = case_when(
-    yos <= 4 ~ 0,
+    yos <= 4 ~ nactives,
     yos == 5 ~ nactives * 0.5,
-    TRUE ~ nactives
+    TRUE ~ 0
   ))
+
+
 
 
 ## Service retirees
  # For now, combine service retirees and beneficiaries
-
-grp_include <- df_n_servRet_fillin$grp %>% unique
-grp_include <- grp_include[str_detect(grp_include, "poff")]
 
 df_n_servRet_tier <- 
   full_join(df_n_servRet_fillin,
@@ -628,15 +620,14 @@ df_n_servRet_tier <-
 # (df_n_servRet_tier$n_servRet*df_n_servRet_tier$benefit_servRet) %>% sum
 # model/target:2492264817/2492264816 = 100%
 
-
+# assume all service retirees are classic members
+df_n_servRet_tier %<>% 
+  mutate(n_servRet = 0)
 
 
 
 ## Disability retirees
  # For now, combine industrial and non-industrial disability retirees
-
-grp_include <- df_n_disbRet_nonocc_fillin$grp %>% unique
-grp_include <- grp_include[str_detect(grp_include, "poff")]
 
 df_n_disbRet_tier <- 
   left_join(df_n_disbRet_nonocc_fillin,
@@ -663,6 +654,11 @@ df_n_disbRet_tier <-
 # CalPERS: Check total benefit againt the AV value (AV2018 ep141-145)
 # (df_n_disbRet_tier$n_disbRet*df_n_disbRet_tier$benefit_disbRet) %>% sum
 # model/target:773929137/ 774100780 = 99.97783%
+
+# Assume all disability retirees are classic members
+df_n_disbRet_tier %<>% 
+  mutate(n_distRet = 0)
+
 
 ## View the results
 # df_n_actives_tier

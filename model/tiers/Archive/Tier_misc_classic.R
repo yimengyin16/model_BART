@@ -1,4 +1,4 @@
-# Prepare model inputs for tier "miscAll"
+# Prepare model inputs for tier "misc_classic"
 
 
 
@@ -12,7 +12,7 @@
 
 
 #' What this file does
-#'   - produce the following model inputs for tier "miscAll"
+#'   - produce the following model inputs for tier "misc_classic"
 #'     - decrement table
 #'     - salary scale
 #'     - initial demographics   
@@ -25,32 +25,40 @@
 
 
 ##' Members included 
-#'  - misc classic tier 1
-#'  - misc classic tier 2
-#'  - misc PEPRA tier 1
-#'  - misc PEPRA tier 2
-#'  - industrial classic tier 1/2
-#'  - industrial classic tier 1/2 
+#'  - misc classic tier 1&2
+#'  - industrial classic tier 1&2
 
     
-
 ##' Service retirement 
 #'  
-#'  - Use benefit rules based on Misc Tier 1 classic members with 2%55 rules.
-#'  - Benefit factor will adjusted downward to take into account PEPRA members
-#'  - Try using a single retirement age
+#'  - Benefit rules
+#'      - Use benefit rules based on Misc Tier 1 classic members with 2%@55 rules.
+#'        (The 2%@55 rule is applied to all classic members who joined before 1/15/2011, 
+#'        so this rule should over the majority of classic members)
+#'  
+#'  - Final compensation 
+#'      - The plan policy: 
+#'        - 12 month for members who joined before 1/15/2011
+#'        - 36 month for members who joined on or after 1/15/2011)
+#'      - Model:
+#'        - 12 month (1-year in the model) for classic members.
+#'        - 36 month (3-year in the model) for pepra members.  
+#'        - Do not model salary cap and SS offset for now, do calibration instead.
 #'  
 #'  Eligibility: 
-#'   - age>=50 & yos>=5
+#'   - classic: age>=50 & yos>=5
+#'   - pepra:   age>=52 & yos>=5
 #'  
 #'  Vesting: yos >=5 
 #'  
-#'  Benefit factor: 2% at age 55 (adjust to 58 for PEPRA?)
+#'  Benefit factor: 2% at age 55
 
 
 # Deferred retirement  
-#' start receiving benefit at 59
+#' - Plan policy: eligible to receive benefit at age 50 (classic) or 52 (PEPRA).
+#  - Model: start receiving benefit at 59 
 #' - Simplification: do not model refund upon separation but take into account its separation rates
+# TODO: check if the offical valuation report also use the age 59 assumption. 
 
 
 # Disability retirement
@@ -83,9 +91,10 @@
 #' Notes on group weights
 #'  - See "groupWgts" tab in run control file. 
 #' Active members (AV2018 np15-19)
-#    - misc	0.937
+#    - misc total:0.937
 #     - misc-classic	0.679
 #     - misc-pepra	  0.258
+#       or 
 #     - misc-Tier1	  0.918
 #     - misc-Tier2	  0.018
 #    
@@ -99,6 +108,41 @@
 
 # Notes on gender ratio:
 # 40% male and 60% female for all calculations for misc members. 
+
+
+
+## Assumptions on demographics
+# 
+# Classic and PEPRA mebmers:
+#  Active members:
+#   - Members who joined the plan on or after Jan 1, 2013 are PEPRA members
+#   - In the model, we assume that a member attains 1 yos after a full year of employment. 
+#   - The dempgrahpic data from AV2018 are up to 6/30/2018
+#   - Therefore, members who joined on 6/30/2013 had just attained 5 YOS and 
+#     members who joined between 7/1/2012 and 6/30/2013 have 5 yos in the membership data. 
+#   - Assuming the entry of new members uniformly distributed during year, we can assume that 
+#     all members with YOS <= 4 and half of new members with YOS = 5 are PEPRA members. 
+#  
+#  Serivice retirees
+#   - According to CAFR2018-19 ep159, more than 99.9% of service retirees and 
+#     beneficiaries are classic members. In the model we assume all service retirees 
+#     and beneficiaires in the AV data are classic members
+#
+#  Disability retirees. 
+#   - We have not found data that show the proportion of PEPRA members in disability retirees.
+#   - Because the PEPRA tier is still new and members are generally younger, we assume
+#     all disability retirees in the AV data are classic members. 
+# 
+#  Initial terminated members
+#   - For now, we assume that for each tier the liability of initial terminated members(in or not in pay status) 
+#     is a fixed percentage of the AL of retirees. 
+#   - As we assume the PEPRA tier has no retirees in the model, there are no AL for initial terminated members 
+#     under the current simplification method. The should not be an issue because the actual AL for termianted should be 
+#     very small as the PEPRA tier is still new. 
+
+
+
+
 
 
 
@@ -118,14 +162,14 @@ range_ea  <- 20:74  # max retirement age is assumed to be 75 (qxr = 1 at age 75 
 
 
 # Tier specific parameters
-
-tier_name <- "miscAll"
+tier_name <- "misc_classic"
 age_vben  <- 59 # assumed age of starting receiving deferred retirement benefits
 v.year    <- 5
 fasyears  <- 1  # based on policy before PEPRA
 bfactor   <- 0.02
 cola_assumed <- 0.02 # assumed cola rates for valuation  
-EEC_rate <- 0.0735
+EEC_rate <- 0.0735 # TODO:check/estimate EEC rate for classic and PEPRA members
+
 
 # Other tier params to add
 # cola
@@ -151,15 +195,14 @@ load(paste0(dir_data, "Data_CalPERS_demographics_20180630_fillin.RData"))
 
 # groups included
 grp_include <- df_qxr_imputed$grp %>% unique
-grp_include <- grp_include[str_detect(grp_include , "misc|inds")]
+grp_include <- grp_include[str_detect(grp_include , "misc_classic|inds_classic")]
 
 # weight for each group
 wgts <- tibble(grp = grp_include, wgt = 0)
 
 wgts[wgts$grp == "misc_classic","wgt"] <-  0.679
-wgts[wgts$grp == "misc_pepra",  "wgt"] <-  0.258
 wgts[wgts$grp == "inds_classic","wgt"] <-  0.046
-wgts[wgts$grp == "inds_pepra",  "wgt"] <-  0.017
+
 
 ## calculate weighted average
 
@@ -183,11 +226,11 @@ grp_include <- grp_include[str_detect(grp_include, "misc|inds")]
 # weight for each group
 wgts <- tibble(grp = grp_include, wgt = 0)
 
-wgts[wgts$grp == "misc_t1_female","wgt"] <-  0.918*0.6
-wgts[wgts$grp == "misc_t1_male",  "wgt"] <-  0.918*0.4
-wgts[wgts$grp == "misc_t2_female","wgt"] <-  0.018*0.6
-wgts[wgts$grp == "misc_t2_male",  "wgt"] <-  0.018*0.4
-wgts[wgts$grp == "inds",  "wgt"]         <-  0.063
+wgts[wgts$grp == "misc_t1_female","wgt"] <-  0.679 * 0.918/(0.918+0.018) * 0.6
+wgts[wgts$grp == "misc_t1_male",  "wgt"] <-  0.679 * 0.918/(0.918+0.018) * 0.4
+wgts[wgts$grp == "misc_t2_female","wgt"] <-  0.679 * 0.018/(0.918+0.018) * 0.6
+wgts[wgts$grp == "misc_t2_male",  "wgt"] <-  0.679 * 0.018/(0.918+0.018) * 0.4
+wgts[wgts$grp == "inds",  "wgt"]         <-  0.046
 
 
 ## calculate weighted average
@@ -217,9 +260,9 @@ grp_include <- grp_include[str_detect(grp_include, "misc|inds")]
 # weight for each group
 wgts <- tibble(grp = grp_include, wgt = 0)
 
-wgts[wgts$grp == "misc_t1",  "wgt"] <-  0.918
-wgts[wgts$grp == "misc_t2",  "wgt"] <-  0.018
-wgts[wgts$grp == "inds",     "wgt"] <-  0.063
+wgts[wgts$grp == "misc_t1",  "wgt"] <-  0.679 * 0.918/(0.918+0.018)
+wgts[wgts$grp == "misc_t2",  "wgt"] <-  0.679 * 0.018/(0.918+0.018)
+wgts[wgts$grp == "inds",     "wgt"] <-  0.046
 
 
 ## calculate weighted average
@@ -247,9 +290,9 @@ grp_include <- grp_include[str_detect(grp_include, "misc|inds")]
 # weight for each group
 wgts <- tibble(grp = grp_include, wgt = 0)
 
-wgts[wgts$grp == "misc_t1",  "wgt"] <-  0.918
-wgts[wgts$grp == "misc_t2",  "wgt"] <-  0.018
-wgts[wgts$grp == "inds",     "wgt"] <-  0.063
+wgts[wgts$grp == "misc_t1",  "wgt"] <-  0.679 * 0.918/(0.918+0.018)
+wgts[wgts$grp == "misc_t2",  "wgt"] <-  0.679 * 0.018/(0.918+0.018)
+wgts[wgts$grp == "inds",     "wgt"] <-  0.046
 
 
 ## calculate weighted average
@@ -460,8 +503,8 @@ grp_include <- grp_include[str_detect(grp_include, "misc|inds")]
 # weight for each group
 wgts <- tibble(grp = grp_include, wgt = 0)
 
-wgts[wgts$grp == "misc", "wgt"] <-  0.937
-wgts[wgts$grp == "inds", "wgt"] <-  0.063
+wgts[wgts$grp == "misc", "wgt"] <-  0.679
+wgts[wgts$grp == "inds", "wgt"] <-  0.046
 wgts
 
 ## calculate weighted average
@@ -500,6 +543,8 @@ grp_include <- grp_include[str_detect(grp_include, "misc|inds")]
 
 
 ## Active members
+
+# all active members 
 df_n_actives_tier <- 
   df_nactives_fillin %>% 
   filter(grp %in% grp_include) %>% 
@@ -519,9 +564,57 @@ df_n_actives_tier <-
 # model/target: 12951558687/12950836352 = 100.0056%
 
 
+# Keep classic members only
+#  assume 
+#    - members with yos <= 4 are all pepra members
+#    - 50% of members with yos == 5 are pepra members
+#    - the rest are classic membrs 
+
+df_n_actives_tier %<>% 
+  mutate(nactives = case_when(
+    yos <= 4 ~ 0,
+    yos == 5 ~ nactives * 0.5,
+    TRUE ~ nactives
+  ))
+
+# Potential issue:
+#  - Currently we have not found data about the proportion of PEPRA members in
+#    state PERF A members. 
+#  - The closest is the number of classic and PEPRA members in 
+#    the entire PERF A, including both state and non-state members. (CAFR2019-19 ep159)
+#    It shows that 72.5% misc(and inds?) members are classic members. 
+#  - Under the assumptions described above, classic members only accounts for 
+#    61% of total state PERF A members. 
+#  - This can be because 
+#      1. We have overestimated the number of PEPRA members under our assumption. 
+#      2. The proportion of PEPRA members differs for state and non-state PERF A members. 
+#      3. A combination of the two. 
+# 
+# TODO: For now, we will just stick with the simple assumptions, and see if the 
+#       simulation results are off the target too much. 
+#  
+
+# (df_n_actives_tier$nactives %>% sum)*0.725
+# (df_n_actives_tier$nactives %>% sum)*0.275
+# 
+# df_n_actives_tier %>%
+#   mutate(nactives_c = case_when(
+#     yos <= 4 ~ 0,
+#     yos == 5 ~ nactives * 0.5,
+#     TRUE ~ nactives
+#   )) %>%
+#   summarise(nactives_c = sum(nactives_c),
+#             nactives   = sum(nactives)) %>%
+#   mutate(c_share = nactives_c / nactives)
+
+
+
+
 
 ## Service retirees
  # For now, combine service retirees and beneficiaries
+
+# assume all service retirees are classic members
 
 df_n_servRet_tier <- 
   full_join(df_n_servRet_fillin,
@@ -546,16 +639,6 @@ df_n_servRet_tier <-
   arrange(age) %>% 
   ungroup()
 
-# df_n_servRet_fillin %>% 
-#   filter(grp %in% grp_include) %>% 
-#   summarise(age_avg = weighted.mean(age, n_servRet))
-# 
-# df_n_beneficiaries_fillin %>% 
-#   filter(grp %in% grp_include) %>% 
-#   summarise(age_avg = weighted.mean(age, n_beneficiaries))
-
-
-
 # CalPERS: Check total benefit againt the AV value (AV2018 ep141-145)
 # Note payments for beneficiaries (death after retirement) are included
 # (df_n_servRet_tier$n_servRet*df_n_servRet_tier$benefit_servRet) %>% sum
@@ -565,6 +648,8 @@ df_n_servRet_tier <-
 
 ## Disability retirees
  # For now, combine industrial and non-industrial disability retirees
+
+# Assume all disability retirees are classic members
 
 df_n_disbRet_tier <- 
   left_join(df_n_disbRet_nonocc_fillin,
