@@ -166,11 +166,7 @@ share_male   <- 1 - share_female
 
 
 # Other tier params to add
-# cola
 
-# EEC rate, need to think about EEC
-
-# gender ratio
 
 #*******************************************************************************
 #                      ## Loading data  ####
@@ -681,7 +677,8 @@ df_n_disbRet_tier <-
             benefit_disbRet_occ   = weighted.mean(benefit_disbRet_occ, n_disbRet_occ, na.rm= TRUE),
             n_disbRet_occ         = sum(n_disbRet_occ, na.rm = TRUE),
             
-            .groups = "rowwise") %>% 
+            .groups = "drop") %>% 
+  mutate(across(everything() , na2zero)) %>% 
   mutate(grp = tier_name,
          benefit_disbRet = na2zero((benefit_disbRet_nonocc * n_disbRet_nonocc + benefit_disbRet_occ * n_disbRet_occ) / (n_disbRet_occ + n_disbRet_nonocc)),
          n_disbRet       = n_disbRet_occ + n_disbRet_nonocc
@@ -692,17 +689,7 @@ df_n_disbRet_tier <-
 
 # BART: Check total benefit againt the AV value
 # (df_n_disbRet_tier$n_disbRet*df_n_disbRet_tier$benefit_disbRet) %>% sum
-# model/target: 1187016 / 1295760 = 91.6%
-
-# Model is 8.4% lower than the target. Do further adjustment
-
-val_mod <- (df_n_disbRet_tier$n_disbRet*df_n_disbRet_tier$benefit_disbRet) %>% sum
-val_tgt <- 1295760
-
-df_n_disbRet_tier %<>% 
-  mutate(benefit_disbRet = benefit_disbRet * val_tgt / val_mod)
-
-# (df_n_disbRet_tier$n_disbRet*df_n_disbRet_tier$benefit_disbRet) %>% sum
+# model/target: 1295760/ 1295760 = 100%
 
 ## View the results
  # df_n_actives_tier
