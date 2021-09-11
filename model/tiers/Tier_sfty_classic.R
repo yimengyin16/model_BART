@@ -566,12 +566,15 @@ df_n_actives_tier <-
 #    - 50% of members with yos == 6 are pepra members
 #    - the rest are classic membrs 
 
+fct <- 0.4169
 df_n_actives_tier %<>% 
   mutate(nactives = case_when(
-    yos <= 5 ~ 0,
-    yos == 6 ~ nactives * 0.5,
+    yos <= 5 ~ nactives * fct,
+    yos == 6 ~ nactives * (0.5 + fct),
     TRUE ~ nactives
   ))
+
+# df_n_actives_tier$nactives %>% sum
 
 # Potential issue (PERF A):
 #  - Currently we have not found data about the proportion of PEPRA members in

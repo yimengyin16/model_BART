@@ -574,12 +574,27 @@ df_n_actives_tier <-
 #    - 50% of members with yos == 6 are pepra members
 #    - the rest are classic membrs 
 
+# The number of classic members estimated this way is about 200 lower than the 
+#  reported number of 2162 in Misc AV2019 (ep26). Even assuming all members with yos == 6 
+#  cannot increase the number of classic to the reported value. Hence we assume portion of
+#  members with yos <= 6 are categorized as classic due to reasons other than yos. 
+#  
+# Define "fct" as the portion, and calibrate its value until the number of classic 
+#   members matches the reported value.
+#
+# The number of pepra members should be also adjusted accordingly.  
+#
+
+fct <- 0.11758
+
 df_n_actives_tier %<>% 
   mutate(nactives = case_when(
-    yos <= 5 ~ 0,
-    yos == 6 ~ nactives * 0.5,
+    yos <= 5 ~ nactives * fct,
+    yos == 6 ~ nactives * (0.50 + fct) ,
     TRUE ~ nactives
   ))
+# df_n_actives_tier$nactives %>% sum
+
 
 # Potential issue (PERF A):
 #  - Currently we have not found data about the proportion of PEPRA members in
