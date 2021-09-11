@@ -1,4 +1,3 @@
-
 # This module create investment return series. 
 
 gen_returns <- function( sim_paramlist_ = sim_paramlist,

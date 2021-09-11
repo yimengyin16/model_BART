@@ -174,6 +174,7 @@ share_male   <- 1 - share_female
 
 load(paste0(dir_data, "Data_BART_decrements_ES2017_imputed.RData"))
 load(paste0(dir_data, "Data_BART_demographics_20190630_fillin.RData"))
+load(paste0(dir_data, "Data_BART_planInfo_AV2019.RData"))
 
 
 
@@ -450,6 +451,14 @@ decrements_tier  %<>%
 
 
 
+## setting mortality to 1 at the max age
+decrements_tier %<>% 
+  mutate(qxm.pre   = ifelse(age == max(age), 1, qxm.pre),
+         qxm.post  = ifelse(age == max(age), 1, qxm.post), 
+         qxmd.post = ifelse(age == max(age), 1, qxmd.post) 
+         )
+
+
 
 #*******************************************************************************
 #                      ## Decrements 4: Improvement table  ####
@@ -697,6 +706,20 @@ df_n_disbRet_tier <-
  # df_n_disbRet_tier
 
 
+
+#*******************************************************************************
+#                      ## Benefit factor and benefit reduction  ####
+#*******************************************************************************
+
+df_benFactor <- 
+  benFactor_misc$df %>% 
+  select(age          = age_ret,
+         bfactor      = bfactor_classic,
+         benReduction = benReduction_classic)
+  
+
+
+
  
 #*******************************************************************************
 #                    ## Saving tier information in a list  ####
@@ -730,6 +753,8 @@ assign(paste0("tierData_", tier_name),
            df_n_disbRet = df_n_disbRet_tier,
            
            df_salScale  = df_salScale_tier,
+           
+           df_benFactor = df_benFactor,
            
            tier_params = tier_params
          )

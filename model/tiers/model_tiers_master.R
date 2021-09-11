@@ -1,5 +1,4 @@
-# Prepare model inputs for tier "misc_classic"
-
+# Constructing tiers
 
 
 #*******************************************************************************

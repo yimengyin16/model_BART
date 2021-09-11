@@ -65,10 +65,24 @@ init_unrecReturns.unadj <-
 
 
 #*******************************************************************************
+#                      ## Benefit factor  ####
+#*******************************************************************************
+
+benFactor_misc <-  read_excel_range(filePath_dataRaw, "benFactor_misc")
+benFactor_sfty <-  read_excel_range(filePath_dataRaw, "benFactor_sfty")
+
+
+
+#*******************************************************************************
 #                      ## Save Data ####
 #*******************************************************************************
 
 save(init_amort_misc_raw,
      init_amort_sfty_raw,
 		 init_unrecReturns.unadj,
+		 
+		 benFactor_misc,
+		 benFactor_sfty,
+		 
 		 file = paste0(dir_dataOut, "Data_BART_planInfo_AV2019.RData"))
+

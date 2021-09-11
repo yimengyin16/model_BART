@@ -1,20 +1,11 @@
 ## This script conducts the simulation of the finance of the plan
+## Projec: BART
 
-## What's new in version (5)
-# Temp: initial cola_acual = 0.02
+# v1
 
-
-## What's new in version (6)
-# - Change the way actuarial gains caused by policy changes are treated:
-#   - Old: Reducing existing amortization basis
-#   - New: Creating a new amortization basis for the gains of policy changes.
-#           - Gains are amortized over 20 years with level dollar method, with no ramp-up.
-#           - For lowERC runs:  the new basis is applied and offsets existing amort. cost
-#           - For highERC runs: the new basis is NOT applied. 
 
 
 # New parameter to be added (Special settings):
-
 
 run_sim <- function(i.r_ = i.r,
                     sim_paramlist_ = sim_paramlist,
@@ -33,16 +24,16 @@ run_sim <- function(i.r_ = i.r,
   valData <- readRDS(paste0(dir_val, "val_", sim_paramlist_$val_name, ".rds"))
   # note that "dir_val" is defined outside the function
 
-  tn <- "sumTiers"
-  tier_names <- names(valData$indivLiab)
+  tn <- "sumTiers" # Tier used in the simulation 
+  tier_names <- names(valData$indivLiab) # All tiers included in the valuation
   
+
+    
   #*****************************************************************************
-  #              Special settings for modeling CalPERS PERF A      ####
+  #            Special settings for initial assets and amortization     ####
   #***************************************************************************** 
   
   # Set initial total amortization basis
-  
-  
   if(use_baselineUAAL|newBasisPolicyChg){
     df_baseline <- readRDS(paste0(dir_outputs, "sim_", sim_name_baseline, ".rds"))$results
     UAAL.year1.baseline <- df_baseline %>% filter(sim == 0, year == init_year) %>% pull(UAAL)
@@ -50,9 +41,7 @@ run_sim <- function(i.r_ = i.r,
   }
   
 
-  
 
-  
   # Set initial assets
   
   if(use_baselineMA){
@@ -299,9 +288,9 @@ run_sim <- function(i.r_ = i.r,
  
   # Number of members
   penSim0$n_actives  <- valData$aggLiab[[tn]]$active[, "nactives"]
-  penSim0$n_servRet <- valData$aggLiab[[tn]]$servRet.la[, "n_servRet.la"]
-  penSim0$n_defrRet <- valData$aggLiab[[tn]]$defrRet[, "n_defrRet.vest"]
-  penSim0$n_disbRet <- valData$aggLiab[[tn]]$disbRet[, "n_disbRet"]
+  penSim0$n_servRet  <- valData$aggLiab[[tn]]$servRet.la[, "n_servRet.la"]
+  penSim0$n_defrRet  <- valData$aggLiab[[tn]]$defrRet[, "n_defrRet.vest"]
+  penSim0$n_disbRet  <- valData$aggLiab[[tn]]$disbRet[, "n_disbRet"]
   penSim0$n_deathBen <- valData$aggLiab[[tn]]$death[, "n_deathBen"]
   
   #penSim0$ndisb.ca.R0S1 <- valData$aggLiab[[tn]]$disb.ca[,  "n.disb.R0S1"]
@@ -321,6 +310,13 @@ run_sim <- function(i.r_ = i.r,
   #                 Setting up initial amortization payments ####
   #***************************************************************************** 
   
+  # Notes for BART
+  #  - BART valuation reports provides the amortization payment schedule in the form
+  #    of total amortization payments by year. 
+  #  - In the BART model, we use the annual total amort. payment provided by BART, 
+  #    rather than calculating payments using amort. basis.
+  
+  
   # Matrix representation of amortization of amort payment schedule: better visualization but larger size
    # Rows:    schedule of amortization payments for losses/gains occurred in a certain year. 
    # Columns: each column contains all the amortization payments that need to be paid in a simulation year. 
@@ -330,25 +326,34 @@ run_sim <- function(i.r_ = i.r,
   # use_baselineUAAL <- TRUE
   # newBasisPolicyChg <- FALSE
   
-  # calibration
-  # valData$init_amort_raw %<>% 
-  #   mutate(year.remaining = year.remaining + 1)
-  
+
   # Set up the matrix for SC starting from year 1
-  m.max     <- max(valData$init_amort_raw$year.remaining, m) # max number of rows and columns needed
-  m.max     <- max(m.max, 20)  # for amortization of amort. of policy changes
-  SC_amort0 <- matrix(0, nyear + m.max, nyear + m.max)
+  # Modified for BART
+  m.max     <- max(m, 20)  #for amortization of amort. of policy changes
+  SC_amort0 <- matrix(0, nyear + 1, # Only the 1 additional rows needed for existing amort. payments 
+                         nyear + m.max)
+  
+  
+  #m.max     <- max(valData$init_amort_raw$year.remaining, m) # max number of rows and columns needed
+  #m.max     <- max(m.max, 20)  # for amortization of amort. of policy changes
+  #SC_amort0 <- matrix(0, nyear + m.max, nyear + m.max)
   # SC_amort0
   
   
   # Amortization payment amounts for losses/gains occured piror to year 1 (from plan docs). Set up the matrix. 
+  # Modified for BART
   if(use_baselineUAAL & newBasisPolicyChg){
-         SC_amort.init <- matrix(0, nrow(valData$init_amort_raw) + 1, nyear + m.max) # for amortization of amort. of policy changes
-  } else SC_amort.init <- matrix(0, nrow(valData$init_amort_raw), nyear + m.max)
+    SC_amort.init <- matrix(0, 1 + 1, nyear + m.max) # for amortization of amort. of policy changes
+  } else SC_amort.init <- matrix(0, 1, nyear + m.max)
+  
+  # if(use_baselineUAAL & newBasisPolicyChg){
+  #        SC_amort.init <- matrix(0, nrow(valData$init_amort_raw) + 1, nyear + m.max) # for amortization of amort. of policy changes
+  # } else SC_amort.init <- matrix(0, nrow(valData$init_amort_raw), nyear + m.max)
+  # 
   
   
   # Adjustment factor for initial amortization payments 
-      # Factor is defined as the initial model UAAL as a proportion of UAAL in AV.
+      # Factor is defined as the initial model UAAL as a proportion of UAAL in AV (sum of outstanding amort. balance).
       # WARNING: Does not work with "method 2" for AA.
 
    MA.year1.model <- switch(init_MA_type, 
@@ -369,46 +374,74 @@ run_sim <- function(i.r_ = i.r,
    # factor.initAmort <- UAAL.year1.model / [replace with UAAL from plan doc]
    # Notes: Theoretically, the AV UAAL should be equal to the sum of outsftanding amortization balance. 
    #        Need to check the document
-   # Source of the demoninator: AV2016lag page n14, sum of outstanding amortization basis
- 
-   # CalPERS:
    
+   
+   # BART: calculating implied amort. balance
+   amortBalance_implied <- 
+     valData$init_amort_raw %>% 
+     mutate(fct_discount = 1/(1 + i)^(row_number() - 1)) %>% 
+     summarise(balance_implied = sum(payment * fct_discount)) %>% 
+     pull(balance_implied)
+   
+  
    if(use_baselineUAAL){
-     factor.initAmort <- UAAL.year1.baseline / sum(valData$init_amort_raw$balance)
+     factor.initAmort <- UAAL.year1.baseline / amortBalance_implied
    } else {
-     factor.initAmort <- UAAL.year1.model    / sum(valData$init_amort_raw$balance)
+     factor.initAmort <- UAAL.year1.model / amortBalance_implied
    }
    
+   
    # Adjust existing amortization basis
-   init_amort <- 
-     valData$init_amort_raw %>% 
-     mutate(balance = balance * factor.initAmort)
+   # BART
+   init_amort <-
+     valData$init_amort_raw %>%
+     mutate(payment = payment * factor.initAmort)
+   
+   # init_amort <- 
+   #   valData$init_amort_raw %>% 
+   #   mutate(balance = balance * factor.initAmort)
+   
    
    # create new amort. basis for the difference in AL from the baseline run.
-   if(use_baselineUAAL & newBasisPolicyChg){
-     init_amort %<>% 
-       add_row(balance = AL.year1.model - AL.year1.baseline,
-               year.remaining = 20,
-               amort.method = "cp",
-               amort.type   = "closed",
-               skipY1       = FALSE)
+   # - BART
+   
+   if(useAVamort){
+     SC_amort.init[1, 1:nrow(init_amort)] <- init_amort$payment
+     
+     # amortiation due to modeled policy change in year 1
+     if(use_baselineUAAL & newBasisPolicyChg){
+       SC_amort.init[2, 1:20] <- amort.LG(p = AL.year1.model - AL.year1.baseline,
+                                          m = 20,
+                                          g = salgrowth_amort,
+                                          method = "cd")
+      }
      }
    
    
-   
-   if(useAVamort){
-   	SC_amort.init.list <- mapply(amort_LG, 
-   															 p = init_amort$balance, 
-   															 m = init_amort$year.remaining, 
-   															 method = init_amort$amort.method,
-   															 skipY1 = init_amort$skipY1,
-   															 MoreArgs = list(i = i, g = salgrowth_amort, end = FALSE), SIMPLIFY = F)
-   	
-   	for(j in 1:nrow(SC_amort.init)){
-   		SC_amort.init[j, 1:init_amort$year.remaining[j]] <- SC_amort.init.list[[j]]
-   	}
-   }
-  # SC_amort.init
+   # - standard 
+   # if(use_baselineUAAL & newBasisPolicyChg){
+   #   init_amort %<>% 
+   #     add_row(balance = AL.year1.model - AL.year1.baseline,
+   #             year.remaining = 20,
+   #             amort.method = "cp",
+   #             amort.type   = "closed",
+   #             skipY1       = FALSE)
+   #   }
+   # 
+   # 
+   # if(useAVamort){
+   # 	SC_amort.init.list <- mapply(amort_LG, 
+   # 															 p = init_amort$balance, 
+   # 															 m = init_amort$year.remaining, 
+   # 															 method = init_amort$amort.method,
+   # 															 skipY1 = init_amort$skipY1,
+   # 															 MoreArgs = list(i = i, g = salgrowth_amort, end = FALSE), SIMPLIFY = F)
+   # 	
+   # 	for(j in 1:nrow(SC_amort.init)){
+   # 		SC_amort.init[j, 1:init_amort$year.remaining[j]] <- SC_amort.init.list[[j]]
+   # 	}
+   # }
+   # SC_amort.init
   
 
   # Comibining matrices of initial amortization and new amortization
@@ -504,16 +537,7 @@ run_sim <- function(i.r_ = i.r,
                   															 
                   															 )
                   												)
-                 #** Vintage code. 
-                 # penSim$AA[j]  <- ifelse(init_AA_type == "AL_pct" & k != -1, penSim$AL[j] * AA_0_pct,     # Inital MA is a proportion of inital AL;  
-                 #                             ifelse(init_AA_type == "AA0" & k != -1, AA_0,                # Use preset value 
-                 #                                    switch(smooth_method,
-                 #                                           method1 =  with(penSim, MA[j]),                # AA = MA  (always true for if k == -1 regardless of the value of init_AA_type)
-                 #                                           method2 =  with(penSim, MA[j])
-                 #                                    			 ) 
-                 #                             			 )
-                 # 												)
-                 #***                
+              
                  
       # Year 2 and after                      
       } else {

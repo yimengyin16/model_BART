@@ -1,4 +1,5 @@
-# Actuarial valuation for PERF A with 2-tier simplification
+# Run control for simulation module
+# Project: BART
 
 
 # Valuation name
@@ -15,7 +16,7 @@ dir_runControl <- "model/"
 fn_runControl  <- "RunControl.xlsx"
 filePath_runControl <- paste0(dir_runControl, fn_runControl)
 
-dir_outputs <- "model/simulation/outputs_sim2t/"
+dir_outputs <- "model/simulation/outputs_sim/"
 
 
 
@@ -43,6 +44,9 @@ returnScenarios <- read_excel(filePath_runControl, sheet="returns", skip = 0) %>
 #*******************************************************************************
 #                           ### Run simulations ####                      
 #*******************************************************************************
+
+#sim_name_run <- "misc_baseline"
+#sim_paramlist <- filter(sim_runList, sim_name == sim_name_run) %>% as.list
 
 
 for(sim_name_run in sim_runList$sim_name){

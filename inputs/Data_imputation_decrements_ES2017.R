@@ -28,36 +28,14 @@
 # 
 # df_salScale.merit_raw,
 
-{
-## Imputation rules
-#'  - Range of age: 20-110
-#'  - Range of ea:  20 - ?? 
-#'  - Range of yos: 0-??
-#' 
-#' Ranges of ea and yos should take into account the age-yos ranges of the data for active members
-#'  - In active memeber data: max age is 69, max yos is 29 
-#'  - 
-
-
-# Steps
-#' 1. Max retirement age: based on benefit rules and retirement rate assumptions
-#'    - should be 75 (retirement rate assumptions)
-#' 2. Max ea and max age for actives is (max retAge - 1)
-#' 3. Max yos is (max age for actives - min ea)
-#' 
-#' If max age in active member data is greater than the max age determined above, 
-#' then we should consider adjusting the member data(e.g. merged to lower age groups)
-}
-
-## !!TO EDIT for BART
-
 
 
 ## Imputation rules ####
 
 ##' Steps to determine ranges of age, ea, and yos for active members
-#' 1. Max retirement age: based on benefit rules and retirement rate assumptions
-#'    - 70 (retirement rate assumptions)
+#' 1. Retirement age: based on benefit rules and retirement rate assumptions
+#'    - Max: 70 (retirement rate assumptions)
+#'    - Min: 50
 #' 2. Max age: set to the max retirement age  (70)
 #' 3. Max ea : set to (max retAge - 1)        (69)
 #' 4. Max yos: (max age for actives - min ea) (70-20 = 50)
