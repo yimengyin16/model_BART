@@ -713,9 +713,9 @@ df_n_servRet_tier %<>%
 
 df_benFactor <- 
   benFactor_sfty$df %>% 
-  select(age          = age_ret,
-         bfactor      = bfactor_pepra,
-         benReduction = benReduction_pepra)
+  select(age             = age_ret,
+         bfactor_reduced = bfactor_reduced_pepra,
+         benReduction    = benReduction_pepra)
 
 
 

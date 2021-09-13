@@ -36,7 +36,7 @@ get_indivLiab <- function(tierData,
                          Global_paramlist_ =  Global_paramlist){
 
 # Inputs for development ----
-
+# 
 # tierData <- ls_tierData[[1]]
 # val_paramlist_    =  val_paramlist
 # Global_paramlist_ =  Global_paramlist
@@ -112,7 +112,7 @@ liab_active %<>%
   arrange(start_year, ea, age) %>% 
   left_join(tierData$salary_full, by = c("start_year", "ea", "age", "year")) %>%         # adding sx (annual salaries)
   left_join(select(tierData$decrements_expanded, -grp), by = c("year", "ea", "age")) %>% # adding decrements
-	left_join(tierData$df_benFactor, by = c("age")) %>% # adding decrements
+	left_join(select(tierData$df_benFactor, age, benReduction), by = c("age")) %>% # adding decrements
 	mutate(grp = tierData$tier_name,
 	       yos = age - ea) %>% 
   colwise(na2zero)(.) %>% 
@@ -234,7 +234,9 @@ liab_active %<>%
 cat("......DONE\n")
 
 
-liab_active %>% head
+liab_active %>% 
+	filter(start_year == 2020, ea == 25) %>% 
+	select(year, start_year, ea, age, yos, sx, Bx, bfactor_reduction, bfactor_vec, fas)
 
 
 #*******************************************************************************
@@ -793,7 +795,7 @@ cat("......DONE\n")
 #   4.1  Death benefit (before retirement): ALs, NCs for actives           #####
 #*******************************************************************************
 
-# PERF A pre-retirement death benefit:
+# BART standard pre-retirement death benefit, for misc members:
 # - Basic Death Benefit
 #   - Only for active members
 #   - Benefit: the sum of
@@ -801,6 +803,22 @@ cat("......DONE\n")
 # 		 - 6 months' salary if eligible for service retirement or Alternate Death Benefit
 
 # Simplified version for now: 2-years of final salary
+
+
+
+# BART standard pre-retirement death benefit, for misc members:
+# - Basic Death Benefit
+#   - Only for active members
+#   - Benefit: the sum of
+#      - Member's accumulated contributions, with interest max(6%, prevailing discount rate)
+# 		 - 6 months' salary if eligible for service retirement or Alternate Death Benefit
+
+# Simplified version for now: 2-years of final salary
+
+
+
+
+
 
 
 cat("Death Benefits - actives")

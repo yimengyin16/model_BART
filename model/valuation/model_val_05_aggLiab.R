@@ -1,5 +1,6 @@
 # This script calculate aggregate annual ALs, NCs and benefit payments.
-
+# Project: BART
+# Special rule for pepra EEC rate added for BART
 
 get_aggLiab <- function(tn, 
                         pop_,
@@ -12,17 +13,16 @@ get_aggLiab <- function(tn,
 
     
   # Run the section below when developing new features.  
-   # tn  = "miscAll"
+   # tn  = names(ls_tierData)[2]
    # pop_ = pop
    # indivLiab_ = indivLiab
    # val_paramlist_    =  val_paramlist
    # Global_paramlist_ =  Global_paramlist
-   
-   
+
+  
    assign_parmsList(Global_paramlist_, envir = environment())
    assign_parmsList(val_paramlist_,    envir = environment())
-  
-   # tn <- names(pop_)[1] # tn stands for tier name
+   
    
 
 ## Notes on naming conventions:
@@ -61,11 +61,26 @@ get_aggLiab <- function(tn,
             PVFBx.active  = rowSums(select(., starts_with("PVFBx"))),
             PVFNCx.active = rowSums(select(., starts_with("PVFNCx"))),
             ) %>% 
-     rename(PR = sx) %>% 
-     as.matrix()
-
-  indivLiab_[[tn]]$active_yearsum %>% as.data.frame %>% select(year, ends_with(".active"), EEC, PR)
-  indivLiab_[[tn]]$active_yearsum %>% as.data.frame %>% select(year, ends_with(".servRet.laca"), EEC, PR) 
+     rename(PR = sx) #%>% 
+     #as.matrix()
+  
+  # BART pepra members' EEC
+  #  50% of NC rate  
+   
+   if(str_detect(tn, "pepra")){
+   
+   indivLiab_[[tn]]$active_yearsum %<>% 
+     mutate(#NC_rate  = NCx.active / PR,
+            #EEC_rate = round(400 * NC_rate / 2)/400,
+            EEC      = PR * round(400 * (NCx.active / PR) / 2)/400
+            #EEC_rate = EEC / PR
+            )
+   }
+   
+   indivLiab_[[tn]]$active_yearsum %<>% as.matrix()
+   
+  #indivLiab_[[tn]]$active_yearsum %>% as.data.frame %>% select(year, ends_with(".active"), EEC, PR)
+  #indivLiab_[[tn]]$active_yearsum %>% as.data.frame %>% select(year, ends_with(".servRet.laca"), EEC, PR) 
   
   # liab_$active %<>%  
   #   mutate(ALx.laca.cellsum     = ALx.laca * number.a,

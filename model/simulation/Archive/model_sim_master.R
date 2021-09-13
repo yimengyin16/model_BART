@@ -1,5 +1,49 @@
-# Master file for simulation
-# Project: BART
+# Actuarial valuation for PERF A with 2-tier simplification
+
+
+# Valuation name
+# rm(list = ls())
+
+#source("libraries.R")
+
+#*******************************************************************************
+#                           ### Valuation parameters ####                      
+#*******************************************************************************
+## File path of the run control file
+
+# dir_runControl <- "model/"
+# fn_runControl  <- "RunControl.xlsx"
+# filePath_runControl <- paste0(dir_runControl, fn_runControl)
+# 
+# dir_outputs <- "model/simulation/outputs_sim/"
+# 
+# 
+# ## Import global parameters
+# Global_paramlist <- read_excel(filePath_runControl, sheet="GlobalParams") %>% 
+#   filter(!is.na(init_year)) %>% 
+#   as.list
+#  
+# ## Import valuation parameters
+# sim_paramlist <- read_excel(filePath_runControl, sheet="params_sim", skip  = 3) %>% 
+#   filter(!is.na(sim_name), include == TRUE) %>% 
+#   as.list
+# 
+# ## Import investment return scenarios
+# returnScenarios <- read_excel(filePath_runControl, sheet="returns", skip = 0) %>% filter(!is.na(scenario))
+# 
+# 
+# sim_name_run <- sim_paramlist$sim_name #"Dev_cola"
+
+
+## Additinal global variables 
+
+# # age and entry age ranges
+# Global_paramlist$range_age <- with(Global_paramlist, min_age:max_age)
+# Global_paramlist$range_ea  <- with(Global_paramlist, min_ea:max_ea)
+
+
+# turn tier names into a character vector
+
 
 
 cat("Running simulation", sim_paramlist$sim_name, "\n")
@@ -14,18 +58,17 @@ cat("Running simulation", sim_paramlist$sim_name, "\n")
 # }
 
 # Load tier data
-dir_val <- "model/valuation/outputs_val/"
+dir_val <- "model/valuation2/outputs_val/"
 
-
+# tierData_miscAll
 
 #*******************************************************************************
 #              Actual investment return, for all tiers                      ####
 #*******************************************************************************
-source("model/simulation/model_sim_02_invReturns.R")
+source("model/simulation/model_sim_invReturns.R")
 sim_paramlist$seed <- 123
 i.r <- gen_returns()
-
-## Checking returns
+#i.r
 i.r[1:10, 1:5]
 
 
@@ -38,7 +81,7 @@ i.r[1:10, 1:5]
 # } else {
 #   source("model/simulation/model_sim_simulation.R")
 # }
-source("model/simulation/model_sim_03_simulation.R")
+source("model/simulation/model_sim_simulation_contingentCOLA(7).R")
 
 
 {
@@ -63,7 +106,7 @@ outputs_list <- list(sim_paramlist    = sim_paramlist,
                      results          = penSim_results)
 
 
-# saveRDS(outputs_list, file = paste0(dir_outputs, "sim_", sim_name_run, ".rds"))
+saveRDS(outputs_list, file = paste0(dir_outputs, "sim_", sim_name_run, ".rds"))
 
 
 
@@ -107,7 +150,7 @@ var_display1 <- c("sim_name", "val_name", "sim", "year",
 # "ndisb.la", "ndisb.ca.R1", "ndisb.ca.R0S1" )
 
 penSim_results %>% filter(sim == 0)  %>% select(one_of(var_display1))  %>% print
-penSim_results %>% filter(sim == -1)  %>% select(one_of(var_display1))  %>% print
+# penSim_results %>% filter(sim == 1)  %>% select(one_of(var_display1))  %>% print
 # penSim_results %>% filter(sim == -2) %>% select(one_of(var_display1))  %>% print
 
 print(end_time  - start_time)
@@ -122,66 +165,5 @@ print(end_time  - start_time)
 
 # sim_misc_bf100_cola2$results   %>% filter(sim == 0, year <= 2027)  %>% select(one_of(var_display1))  %>% print
 # sim_misc_bf100_colaCut$results %>% filter(sim == 0, year <= 2027)  %>% select(one_of(var_display1))  %>% print
-
-#*******************************************************************************
-# Detective work 
-#*******************************************************************************
-# 
-# #  1. why NC and AL for misc actives are so low
-# 
-# df_val <- readRDS("model/valuation/outputs_val/val_misc_bf100_cola2.rds")
-# 
-# df_classic <-
-#   df_val$aggLiab$misc_classic$active %>%
-#   as.data.frame() %>%
-#   mutate(AL_tot = ALx.servRet.laca + ALx.defrRet + ALx.death + ALx.disbRet,
-#          NC_tot = NCx.servRet.laca + NCx.defrRet + NCx.death + NCx.disbRet,
-#          PVFB_tot = PVFBx.servRet.laca + PVFBx.defrRet + PVFBx.death + PVFBx.disbRet,
-#          PVFNC_tot = PVFNCx.servRet.laca + PVFNCx.defrRet + PVFNCx.death + PVFNCx.disbRet,
-#          NC_PR    = 100 * NC_tot/PR
-#          ) %>%
-#   relocate(year, NC_PR,  NC_tot, AL_tot, PVFB_tot, PVFNC_tot, PR, nactives)
-# 
-# 
-# df_pepra <-
-#   df_val$aggLiab$misc_pepra$active %>%
-#   as.data.frame() %>%
-#   mutate(AL_tot = ALx.servRet.laca + ALx.defrRet + ALx.death + ALx.disbRet,
-#          NC_tot = NCx.servRet.laca + NCx.defrRet + NCx.death + NCx.disbRet,
-#          PVFB_tot = PVFBx.servRet.laca + PVFBx.defrRet + PVFBx.death + PVFBx.disbRet,
-#          PVFNC_tot = PVFNCx.servRet.laca + PVFNCx.defrRet + PVFNCx.death + PVFNCx.disbRet,
-#          NC_PR    = 100 * NC_tot/PR
-#   ) %>%
-#   relocate(year, NC_PR,  NC_tot, AL_tot, PVFB_tot, PVFNC_tot, PR, nactives)
-# 
-# df_classic %>% filter(year <= 2050)
-# df_pepra   %>% filter(year <= 2050)
-# 
-# 
-# 
-# ## Individual valuation
-# df_classic_indv <-
-#   df_val$indivLiab$misc_classic$active %>%
-#   mutate(yos = age - ea,
-#          start_year = year - yos) %>%
-#   relocate(year, start_year, ea, age, yos)
-# 
-# 
-# df_classic_indv %>%
-#   filter(start_year == 2020, ea == 25) %>%
-#   select(year, start_year, ea, age, yos, contains("servRet"), sx, Bx) %>%
-#   mutate(x = Bx.servRet.laca/Bx,
-#          y = Bx / sx)
-
-
-
-
-
-
-
-
-
-
-
 
 
