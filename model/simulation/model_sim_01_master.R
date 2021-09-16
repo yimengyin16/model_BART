@@ -63,7 +63,7 @@ outputs_list <- list(sim_paramlist    = sim_paramlist,
                      results          = penSim_results)
 
 
-# saveRDS(outputs_list, file = paste0(dir_outputs, "sim_", sim_name_run, ".rds"))
+saveRDS(outputs_list, file = paste0(dir_outputs, "sim_", sim_name_run, ".rds"))
 
 
 

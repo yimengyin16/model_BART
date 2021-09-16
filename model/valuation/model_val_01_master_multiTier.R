@@ -2,7 +2,6 @@
 
 
 
-
 # val_name_run <- val_runList$val_name[1]
 
 
@@ -82,7 +81,7 @@ source("model/valuation/model_val_02_prepDataFuns.R", local = TRUE)
 
 for (tierName in names(ls_tierData)){
   
-  # tierName <- "misc_classic"
+  # tierName <- "sfty_pepra"
 
   ls_tierData[[tierName]] <- adj_tierParams(ls_tierData[[tierName]])
   
@@ -93,7 +92,7 @@ for (tierName in names(ls_tierData)){
   
   # 2. Distribution of new entrants
   ls_tierData[[tierName]] <- add_entrantsDist(ls_tierData[[tierName]])
-   #ls_tierData[[tierName]]$entrants_dist %>% plot
+  # ls_tierData[[tierName]]$entrants_dist %>% plot
   
   # 3. Adjustments to retirement rates
   ls_tierData[[tierName]] <- adj_retRates(ls_tierData[[tierName]])

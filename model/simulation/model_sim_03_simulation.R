@@ -410,7 +410,8 @@ run_sim <- function(i.r_ = i.r,
      
      # amortiation due to modeled policy change in year 1
      if(use_baselineUAAL & newBasisPolicyChg){
-       SC_amort.init[2, 1:20] <- amort.LG(p = AL.year1.model - AL.year1.baseline,
+       SC_amort.init[2, 1:20] <- amort_LG(p = AL.year1.model - AL.year1.baseline,
+                                          i = i, 
                                           m = 20,
                                           g = salgrowth_amort,
                                           method = "cd")

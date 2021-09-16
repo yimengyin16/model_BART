@@ -46,16 +46,18 @@ get_indivLiab <- function(tierData,
 
 assign_parmsList(Global_paramlist_, envir = environment())
 assign_parmsList(val_paramlist_,    envir = environment()) 
-
 assign_parmsList(tierData$tier_params,    envir = environment()) 
 
 
 v <- 1/(1+i)
-fct_deathBen <- 2 # simplfying assumption on pre-retirement death benefit: 
-                  # multiplier of salary upon death
 
-# TEMP
-#   
+
+# Simplfying assumption on pre-retirement death benefit: 
+#   multiplier of salary upon death
+if (str_detect(val_paramlist$val_name, "misc")) fct_deathBen <- 2
+if (str_detect(val_paramlist$val_name, "sfty")) fct_deathBen <- 3
+
+
 
 
 #*******************************************************************************
@@ -234,9 +236,9 @@ liab_active %<>%
 cat("......DONE\n")
 
 
-liab_active %>% 
-	filter(start_year == 2020, ea == 25) %>% 
-	select(year, start_year, ea, age, yos, sx, Bx, bfactor_reduction, bfactor_vec, fas)
+# liab_active %>% 
+# 	filter(start_year == 2020, ea == 25) %>% 
+# 	select(grp, year, start_year, ea, age, yos, sx, Bx, bfactor_reduction, bfactor_vec, fas, benReduction)
 
 
 #*******************************************************************************
@@ -274,12 +276,19 @@ liab_active %<>%
 		  as.logical(elig_servRet_full) | as.logical(elig_servRet_early) ~ benReduction,
 			TRUE ~ 0),
 		
-		Bx.servRet.laca  = gx.servRet.laca * Bx # benefit in the first retirement year if retirement age = x
+		Bx.servRet.laca  = gx.servRet.laca * Bx, # benefit in the first retirement year if retirement age = x
+		
+		# max benefit 
+		Bx.servRet.laca  = ifelse(grp == "sfty_pepra", pmin(0.9 * fas, 	Bx.servRet.laca), Bx.servRet.laca) 
+		
+		
 		)
 
-# select(liab_active, grp, year,  start_year, ea, age, Bx, sx, yos, fas, benReduction, gx.servRet.laca,  Bx.servRet.laca, pxm_servRet) %>%
-#    filter(start_year == 1995, ea == 30)
 
+# liab_active %>% 
+# 	filter(start_year == 2020, ea == 25) %>% 
+# 	select(grp, year, start_year, ea, age, yos, sx, Bx, Bx.servRet.laca, bfactor_reduction, bfactor_vec, fas, benReduction)
+# 
 
 
 
