@@ -157,7 +157,7 @@ v.year    <- 5
 fasyears  <- 1  # based on policy before PEPRA
 bfactor   <- 0.02
 cola_assumed <- 0.02 # assumed cola rates for valuation  
-EEC_rate <- 0.04  # TODO:check/estimate EEC rate for classic and PEPRA members
+EEC_rate <- 0.07  # TODO:check/estimate EEC rate for classic and PEPRA members
 
 infl_salary <- 0.0275
 
