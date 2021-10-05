@@ -58,7 +58,7 @@ We're working on the following changes for the next update.
 - Update the analysis with the newly released 2020 actuarial valuation reports
 - Examine more reasonable COLA policies
 - Examine more realistic actuarial treatment of COLA suspensions 
-- Impove the model calibration
+- Improve the model calibration
 - Add employer contribution as a percentage of projected budget to the result tables
 - Additional policy options after our discussion on Oct 6
 
@@ -721,7 +721,7 @@ Individuals examined
 **Miscellaneous members**:
 
  1. Misc early-career active: age 30 (PEPRA, entire career is affected)
- 2. Misc mid-career ative:    age 45 (Classic, half of career is affected)
+ 2. Misc mid-career active:    age 45 (Classic, half of career is affected)
  3. Misc retiree:             age 60
 
 For all misc members above: retirement age is 60, entry age is 30.
