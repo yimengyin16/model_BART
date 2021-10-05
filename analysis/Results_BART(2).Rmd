@@ -265,8 +265,8 @@ negative 24% in FY2021-2022, then 3 years of 12%, then 7% annually thereafter.
 
 make_summaryTable_detailed <- function(grpName, sim_select){
 
-sim_select <- 0
-grpName <- "misc"
+# sim_select <- 0
+# grpName <- "misc"
 grpName_label <- switch (grpName,
                          misc  = "Group: Misc members",
                          sfty  = "Group: Safety members",
@@ -474,8 +474,8 @@ scenario:
 - asset shock 
 
 
-### illustrative individuals: Misc
-```{r indivsMisc, eval=FALSE, include=FALSE}
+### Impact on illustrative individuals {.tabset}
+```{r indivsMisc, include=FALSE}
 
 # Examples of illustrative individuals 
 
@@ -508,35 +508,41 @@ scenario:
 # 3. pv of benefits upon retirement
 
 
-# Calculate above for each policy
+## Calculate above for each policy
 
 dir_outputs_val <- "model/valuation/outputs_val/"
 dir_outputs_sim <- "model/simulation/outputs_sim/"
 
 
 
+df_indiv_slc_misc <- 
+	tribble(
+	  ~memberType, ~fn_ea, ~fn_age, ~fn_ageRet, ~ben_current,  ~salary_current, ~year_currentAge, ~tier,         ~row_slc,     ~indiv_label, 
+		 "active",       30,      30,        60,     NA,         80000,           2019,         "misc_pepra",         1,           "Active aged 30",
+	   "active",       30,      45,        60,     NA,         95000,           2019,         "misc_classic",       2,           "Active aged 45",
+	   "servRet",      30,      60,        60,     50000,      NA,              2019,         "misc_classic",        3,           "Retiree aged 60"
+		 #"servRet",      30,      65,        60,     50000,      NA,              2019,         "misc_classic"
+	)
+
+
+df_indiv_slc_sfty <- 
+	tribble(
+	  ~memberType, ~fn_ea, ~fn_age, ~fn_ageRet, ~ben_current,  ~salary_current, ~year_currentAge, ~tier,          ~row_slc,     ~indiv_label, 
+		 "active",       25,      25,        55,     NA,         90000,           2019,         "sfty_pepra",          1,           "Active aged 30",
+	   "active",       25,      40,        55,     NA,         110000,          2019,         "sfty_classic",        2,           "Active aged 45",
+	   "servRet",      25,      55,        55,     75000,      NA,              2019,         "sfty_classic",        3,           "Retiree aged 60"
+		 #"servRet",      25,      60,        55,     80000,      NA,              2019,         "sfty_classic"
+	)
+
 
 
 
 get_examples <- function(simName,
-                         valName_baseline,
                          df_indiv_slc,
                          dr = 0.07){
 
-
-df_indiv_slc <- 
-	tribble(
-	  ~memberType, ~fn_ea, ~fn_age, ~fn_ageRet, ~ben_init,  ~salary_init, ~year_currentAge, ~tier,
-		 "active",       30,      30,        60,     90000,      NA,            2019,         "misc_pepra",
-	   "active",       30,      45,        60,     90000,      NA,            2019,         "misc_classic",
-	   "servRet",      30,      60,        60,     50000,      NA,            2019,         "misc_classic",
-		 "servRet",      30,      65,        60,     50000,      NA,            2019,         "misc_classic"
-	)
-#df_indiv_slc	
-
-simName          <- "misc_benCut1_lowERC"
-valName_baseline <- "misc_bf100_cola2"
-
+# df_indiv_slc <- df_indiv_slc_misc
+# simName          <- "misc_benCut1_lowERC"
 
 ## Loading data ----------------------------------------------------------------
 
@@ -547,7 +553,7 @@ ls_sim <- readRDS(paste0(dir_outputs_sim, paste0("sim_", simName,   ".rds")))
 valName_reform <- ls_sim$sim_paramlist$val_name
 df_val_reform  <- readRDS(paste0(dir_outputs_val, paste0("val_", valName_reform,".rds")))
 
-df_val_baseline <- readRDS(paste0(dir_outputs_val, paste0("val_", valName_baseline, ".rds")))
+# df_val_baseline <- readRDS(paste0(dir_outputs_val, paste0("val_", valName_baseline, ".rds")))
 
 
 
@@ -563,352 +569,268 @@ df_cola <-
 
 # Get active individual information
 
+get_indivBen <- function(row_indiv_slc, df_val){
+
+# df_val <- df_val_reform
+# row_indiv_slc <- 1
+
+indiv_slc <- df_indiv_slc[row_indiv_slc,]
+
+memberType  <- indiv_slc[1,]$memberType
+tier_select <- indiv_slc[1,]$tier #paste0(str_extract(simName, "sfty|misc"), "_classic")
+fn_age      <- indiv_slc[1,]$fn_age
+fn_ea       <- indiv_slc[1,]$fn_ea
+fn_ageRet   <- indiv_slc[1,]$fn_ageRet
+year_currentAge <- indiv_slc[1,]$year_currentAge
+salary_current <-  indiv_slc[1,]$salary_current
+ben_current <-  indiv_slc[1,]$ben_current
+
+# Create a data frame for retirement years for this individual
+df_retirement <- 
+	tibble(year = year_currentAge:(year_currentAge + 80 - fn_age),
+				 age  = fn_age:80,
+				 ageRet = fn_ageRet,
+				 ea = fn_ea,
+				 age_current = fn_age,
+         tier = tier_select,
+				 memberType = memberType,
+				 row_slc = row_indiv_slc
+				 ) %>% 
+	filter(age>=ageRet) %>% 
+	left_join(df_cola %>% select(-sim_name), by = "year") %>% 
+	relocate(row_slc, tier, memberType)
 
 
-n_slc <- 2
+# Determine initial benefit
+#   If active, 
+if (memberType == "active"){
+    # Extract accrued benefit information from valuation result
+    df_active <- 
+    	df_val$indivLiab[[tier_select]]$active %>% 
+    	mutate(start_year = year - (age - ea),
+             age_current = ea + year_currentAge - start_year) %>% 
+      filter(start_year == year_currentAge - (fn_age - fn_ea) & ea == fn_ea) %>% 
+      select(start_year, ea, year, age_current, age, sx, Bx.servRet.laca) %>% 
+      group_by(age_current) 
+    
+    # Adjusting benefit to reflected assumed current salary
+    df_active %<>% 
+    	mutate(fct_adj = salary_current / sx[age == age_current],
+    				 sx = sx*fct_adj,
+    				 Bx.servRet.laca = Bx.servRet.laca * fct_adj
+    				 )
+    
+    # Getting the starting benefit at the assumed retirement age
+    ben_init <- 
+    	filter(df_active, age == fn_ageRet) %>% 
+    	pull(Bx.servRet.laca)
+    
+    salary_final <- 
+    	filter(df_active, age == (fn_ageRet-1)) %>% 
+    	pull(sx)
+    
+    
+}
 
-tier_select <- df_indiv_slc[n_slc,]$tier #paste0(str_extract(simName, "sfty|misc"), "_classic")
-fn_age      <- df_indiv_slc[n_slc,]$fn_age
-fn_ea       <- df_indiv_slc[n_slc,]$fn_ea
-fn_ageRet   <- df_indiv_slc[n_slc,]$fn_ageRet
-year_currentAge <- df_indiv_slc[n_slc,]$year_currentAge
-memberType <- df_indiv_slc[n_slc,]$memberType
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# if active
-df_val_baseline$indivLiab[[tier_select]]$servRet.la %>% 
-	filter(start_year == year_currentAge - (fn_age - fn_ea) & ea == fn_ea & age_servRet ==  fn_ageRet) %>% 
-  select(age_servRet, start_year, year_servRet, ea, age, year, B_baseline = B.servRet.la) %>% 
-	mutate(age_current = fn_age)
-
-# if retiree
-df_val_baseline$indivLiab[[tier_select]]$servRet.la %>% 
-	filter(year_servRet == year_currentAge - (fn_age - fn_ageRet) & age_servRet == fn_ageRet) %>% 
-  select(age_servRet, start_year, year_servRet, ea, age, year, B_baseline = B.servRet.la) %>% 
-	mutate(age_current = fn_age)
+#  If retiree, determine initial benefit
+if (memberType == "servRet") ben_init <- ben_current
 
 
+# Calculating benefits in retirement years
+df_retirement %<>% 
+	mutate(B_met   = ifelse(age == min(age), ben_init, 0),
+				 B_shock = B_met,
+				 
+				 B_met   =  B_met[age == min(age)] *   lag(cumprod(1 + cola_met),   default = 1),
+				 B_shock =  B_shock[age == min(age)] * lag(cumprod(1 + cola_shock), default = 1)
+				 ) 
+
+# add final salary if active	
+if (memberType == "active"){
+	mutate(df_retirement, salary_final = salary_final)
+	} else 	mutate(df_retirement, salary_final = NA)
+
+}
+
+# df_retirement <- get_indivBen(1, df_val_reform)
+# df_retirement
+
+df_retirement <- 
+    map_dfr(seq_len(nrow(df_indiv_slc)), function(x) get_indivBen(x, df_val_reform))
 
 
-
-
-df_B <- 
-left_join(
-  df_val_baseline$indivLiab[[tier_select]]$servRet.la %>% 
-    filter( (start_year == 2018 - (fn_age1 - fn_ea) & ea == fn_ea & age_servRet ==  fn_ageRet)|
-            (start_year == 2018 - (fn_age2 - fn_ea) & ea == fn_ea & age_servRet ==  fn_ageRet)|
-            (year_servRet == 2018 & age_servRet == fn_age3)| # retiree
-            (year_servRet == 2018 & age_servRet == fn_age4) # retiree
-           ) %>% 
-     select(age_servRet, start_year, ea, age, year, B_baseline = B.servRet.la),
-  
-  df_val_reduced$indivLiab[[tier_select]]$servRet.la %>% 
-    filter( (start_year == 2018 - (fn_age1 - fn_ea) & ea == fn_ea & age_servRet ==  fn_ageRet)|
-            (start_year == 2018 - (fn_age2 - fn_ea) & ea == fn_ea & age_servRet ==  fn_ageRet)|
-            (year_servRet == 2018 & age_servRet == fn_age3)| # retiree
-            (year_servRet == 2018 & age_servRet == fn_age4) # retiree
-           ) %>% 
-    select(age_servRet, start_year, ea, age, year, B_reduced = B.servRet.la) 
-) %>% 
-# mutate(B_pctChg = B_reduced / B_baseline - 1) %>% 
-arrange(start_year) %>% 
-mutate(age_2018 = ea + 2018 - start_year) %>% 
-left_join(df_cola, by = "year")
-
-df_B %>% filter(age_2018<55)
-df_B %>% filter(age_2018>=55, year == 2018)
-
-
-
-df_wage_fct <- 
-  df_B %>% 
-  group_by(age_2018) %>% 
-  filter(age_2018 <55, age == fn_ageRet) %>% 
-  mutate(wage_fct =  case_when(age_2018 == fn_age1 ~ ben_init1,
-                                              age_2018 == fn_age2 ~ ben_init2,
-                                              age_2018 == fn_age3 ~ ben_init3,
-                                              age_2018 == fn_age4 ~ ben_init4,
-                                              TRUE ~ 0)  / B_baseline[1]) %>% 
-  select(age_2018, wage_fct)
-
-
-df_B %<>% 
-  group_by(start_year, age_servRet, ea) %>% 
-  # mutate(B_baseline0 = B_baseline,
-  #        B_baseline = B_baseline * ifelse(age_2018 == fn_age1, ben_init1, ben_init3) / B_baseline0[1],
-  #        B_reduced  = B_reduced  * ifelse(age_2018 == fn_age1, ben_init1, ben_init3) / B_baseline0[1],
-  #        B_baseline0 = NULL
-  #        )
-   mutate(B_baseline0 = B_baseline,
-          B_baseline = B_baseline * case_when(age_2018 == fn_age1 ~ ben_init1,
-                                              age_2018 == fn_age2 ~ ben_init2,
-                                              age_2018 == fn_age3 ~ ben_init3,
-                                              age_2018 == fn_age4 ~ ben_init4,
-                                              TRUE ~ 0) / B_baseline0[1],
-          B_reduced  = B_reduced  * case_when(age_2018 == fn_age1 ~ ben_init1,
-                                              age_2018 == fn_age2 ~ ben_init2,
-                                              age_2018 == fn_age3 ~ ben_init3,
-                                              age_2018 == fn_age4 ~ ben_init4,
-                                              TRUE ~ 0)  / B_baseline0[1],
-          B_baseline0 = NULL
-         )
-
-df_B %<>% 
-  group_by(start_year, age_servRet, ea) %>% 
-  mutate(B_a = B_reduced[age == min(age)] * lag(cumprod(1 + cola_a), default = 1),
-         B_s = B_reduced[age == min(age)] * lag(cumprod(1 + cola_s), default = 1))
-
-
-df_wage <- 
-df_val_baseline$indivLiab[[tier_select]]$active %>% 
-    mutate(start_year = year - (age - ea),
-           age_2018 = ea + 2018 - start_year) %>% 
-    filter((start_year == 2018 - (fn_age1 - fn_ea) & ea == fn_ea) |
-           (start_year == 2018 - (fn_age2 - fn_ea) & ea == fn_ea)
-           ) %>% 
-    select(age_2018, age, sx, Bx.servRet.laca) %>% 
-    group_by(age_2018) %>% 
-    filter(age == min(age)) %>% 
-    left_join(df_wage_fct) %>% 
-    mutate(wage_adj = sx * wage_fct)
-
-
-
-# df_B %<>% split(df_B$start_year)
-# 
-# for(i in names(df_B)){
-#   #i <- "2003" 
-#   
-#   df_B[[i]] %<>% 
-#     mutate(B_a = ifelse(year == min(year), B_reduced, 0),
-#            B_s = ifelse(year == min(year), B_reduced, 0))
-#   
-#   for(j in df_B[[i]]$year[-1]){
-#   #j = 2034
-#       df_B[[i]]$B_a[df_B[[i]]$year == j] <- df_B[[i]]$B_a[df_B[[i]]$year == j - 1] * (1 + df_B[[i]]$cola_a[df_B[[i]]$year == j - 1])
-#       df_B[[i]]$B_s[df_B[[i]]$year == j] <- df_B[[i]]$B_s[df_B[[i]]$year == j - 1] * (1 + df_B[[i]]$cola_s[df_B[[i]]$year == j - 1])
-#   }  
-# } 
-  
-df_B %<>% 
-  mutate(B_a_pctChg = B_a / B_baseline - 1,
-         B_s_pctChg = B_s / B_baseline - 1) %>%
-  relocate(sim_name, age_2018) 
- 
-
-df_summary <- 
-  df_B %>% 
-  filter(age <= 85) %>% 
-  group_by(age_2018) %>% 
-  summarise(pvB_baseline    = sum(B_baseline    / (1 + dr)^(age - min(age))),
-            pvB_a = sum(B_a / (1 + dr)^(age - min(age)) ),
-            pvB_s = sum(B_s / (1 + dr)^(age - min(age))),
-            B_baseline_init = B_baseline[age == min(age)],
-            B_a_init = B_a[age == min(age)],
-            B_s_init = B_s[age == min(age)],  
-            B_baseline_age80  = B_baseline[age == 80],
-            B_a_age80  = B_a[age == 80],
-            B_s_age80  = B_s[age == 80]                  
-            ) %>% 
-  mutate(pvB_a_pctChg = pvB_a / pvB_baseline - 1,
-         pvB_s_pctChg = pvB_s / pvB_baseline - 1,
-         B_init_a_pctChg = B_a_init / B_baseline_init - 1,
-         B_init_s_pctChg = B_s_init / B_baseline_init - 1,
-         B_age80_a_pctChg = B_a_age80 / B_baseline_age80 - 1,
-         B_age80_s_pctChg = B_s_age80 / B_baseline_age80 - 1,
-         sim_name = simName,
-         age_2018 = paste0("age", age_2018)
-         ) %>% 
-  relocate(sim_name)
-df_summary
-
-# inversing the table
-# df_pvB2 <- 
-#   df_pvB %>% 
-#   select(sim_name, age_2018, pvB_a_pctChg, pvB_s_pctChg) %>% 
-#   gather(Var, value, -sim_name, -age_2018) %>% 
-#   spread(age_2018, value)
-
-df_summary2 <- 
-df_summary %>%  
-  select(!contains("_s_")) %>% 
-  select(sim_name, age_2018, B_b_init = B_baseline_init, B_a_init, B_b_age80 = B_baseline_age80, B_a_age80) #pvB_baseline, pvB_a)
-df_summary2
-
-
-df_summary3 <- 
-bind_rows(
-df_summary2 %>%    
-  select(sim_name, age_2018, contains("_b_")) %>% 
-  rename(B_zage80 = B_b_age80,
-        B_init   = B_b_init) %>%  
-  gather(variable, value, -sim_name, -age_2018) %>% 
-  mutate(variable = paste0(age_2018,".",variable),
-         age_2018 = NULL) %>%
-  arrange(variable) %>% 
-  spread(variable, value) %>% 
-  mutate(type = "baseline") %>% 
-  relocate(sim_name, type),
-
-# df_summary2 %>% 
-#   select(sim_name, age_2018, contains("_a_")) %>% 
-#   rename(B_zage80 = B_a_age80,
-#          B_init   = B_a_init) %>% 
-#   gather(variable, value, -sim_name, -age_2018) %>% 
-#   mutate(variable = paste0(age_2018,".",variable),
-#          age_2018 = NULL) %>%
-#   arrange(variable) %>% 
-#   spread(variable, value) %>% 
-#   mutate(type = "reform") %>% 
-#   relocate(sim_name, type)
-)
-
-
-
-df <- list(df_B = df_B,
-           df_wage = df_wage,
-           df_summary  = df_summary,
-           df_summary2 = df_summary2,
-           df_summary3 = df_summary3)
+df_retirement %<>% 
+	mutate(sim_name = simName, 
+				 val_name = valName_reform) %>% 
+	relocate(sim_name)
 }
 
 
-# ls_eg_misc_benCut1          <- get_examples(simName = "misc2t_benCut1_lowERC", valName_baseline = "misc2t_bf100_cola2")
-# ls_eg_misc_colaCut1         <- get_examples(simName = "misc2t_colaCut1_lowERC", valName_baseline = "misc2t_bf100_cola2")
-# ls_eg_misc_benCut1_colaCut1 <- get_examples(simName = "misc2t_benCut1_colaCut1_lowERC", valName_baseline  = "misc2t_bf100_cola2")
-# ls_eg_misc_benCut2          <- get_examples(simName = "misc2t_benCut2_lowERC", valName_baseline = "misc2t_bf100_cola2")
-# ls_eg_misc_colaCut2         <- get_examples(simName = "misc2t_colaCut2_lowERC", valName_baseline = "misc2t_bf100_cola2")
-# ls_eg_misc_benCut2_colaCut2 <- get_examples(simName = "misc2t_benCut2_colaCut2_lowERC", valName_baseline  = "misc2t_bf100_cola2")
-
-ls_eg_sfty_benCut1          <- get_examples(simName = "sfty2t_benCut1_lowERC", valName_baseline = "sfty2t_bf100_cola2")
-ls_eg_sfty_colaCut1         <- get_examples(simName = "sfty2t_colaCut1_lowERC", valName_baseline = "sfty2t_bf100_cola2")
-ls_eg_sfty_benCut1_colaCut1 <- get_examples(simName = "sfty2t_benCut1_colaCut1_lowERC", valName_baseline  = "sfty2t_bf100_cola2")
-ls_eg_sfty_benCut2          <- get_examples(simName = "sfty2t_benCut2_lowERC", valName_baseline = "sfty2t_bf100_cola2")
-ls_eg_sfty_colaCut2         <- get_examples(simName = "sfty2t_colaCut2_lowERC", valName_baseline = "sfty2t_bf100_cola2")
-ls_eg_sfty_benCut2_colaCut2 <- get_examples(simName = "sfty2t_benCut2_colaCut2_lowERC", valName_baseline  = "sfty2t_bf100_cola2")
+# x <- get_examples("misc_baseline", df_indiv_slc_misc)
+# x <- get_examples("misc_benCut1_lowERC", df_indiv_slc_misc)
 
 
-#ls_eg_misc_benCut1$df_wage 
-ls_eg_sfty_benCut1$df_wage 
+runNames_misc <- 
+	df_simNames_load %>% 
+	filter(str_detect(sim_name, "misc")) %>% 
+	pull(sim_name) 
 
-#ls_eg_misc_benCut1$df_summary3 %>% kable() 
-ls_eg_sfty_benCut1$df_summary3 %>% kable() 
-
-#ls_eg_misc_colaCut1$df_summary3 %>% kable() 
-ls_eg_sfty_colaCut1$df_summary3 %>% kable() 
-
-
-#ls_eg_misc_benCut1_colaCut1$df_summary3 %>% kable() 
-ls_eg_sfty_benCut1_colaCut1$df_summary3 %>% kable() 
+runNames_sfty <- 
+	df_simNames_load %>% 
+	filter(str_detect(sim_name, "sfty")) %>% 
+	pull(sim_name)
 
 
-#ls_eg_misc_colaCut1$df_summary3 %>% kable() 
-ls_eg_misc_benCut1_colaCut1$df_summary3 %>% kable() 
-
-# check adjusted salary
-ls_eg_sfty_benCut1$df_wage %>% 
-  select(age_2018, wage_adj, wage_unadj = sx)
-
-
-
-
-df_tbl_eg1 <- 
-  bind_rows(
-    ls_eg_sfty_benCut1$df_summary3,
-    ls_eg_sfty_colaCut1$df_summary3,
-    ls_eg_sfty_benCut1_colaCut1$df_summary3,
-    ls_eg_sfty_benCut2$df_summary3,
-    ls_eg_sfty_colaCut2$df_summary3,
-    ls_eg_sfty_benCut2_colaCut2$df_summary3
-  ) %>%
-  filter(type == "reform")
+df_indivBen_misc <- 
+	map_dfr(runNames_misc, function(x) get_examples(x, df_indiv_slc_misc)) %>% 
+	left_join(select(df_simNames_load, sim_name, sim_label, ERCType, policy))
+	
+df_indivBen_sfty <- 
+	map_dfr(runNames_sfty, function(x) get_examples(x, df_indiv_slc_sfty)) %>% 
+	left_join(select(df_simNames_load, sim_name, sim_label, ERCType, policy))
+	
 
 
-df_tbl_eg1  <- bind_rows(ls_eg_sfty_benCut1$df_summary3 %>%
-                           filter(type == "baseline"),
-                         df_tbl_eg1 ) %>% 
-  select(-age55.B_init,-age65.B_init)
-df_tbl_eg1
+## Creating summary tables
+# 1. Benefit upon retirement (55?)
+# 2. Benefit 20 years after retirement
+# 3. pv of benefits upon retirement
+
+infl      <- 0.025
+year_real <- 2019
+dr        <- 0.07
+
+df_indiv_summary1_misc <- 
+  df_indivBen_misc %>% 
+	left_join(select(df_simNames_load, sim_name, sim_label, ERCType, policy), by = "sim_name") %>% 
+	group_by(sim_name, row_slc) %>% 
+	mutate(B_met_real   = B_met / (1+infl)^(year - year_real),
+				 B_shock_real = B_shock / (1+infl)^(year - year_real),
+				 salary_final_real = salary_final / (1+infl)^(year[age==min(age)] - year_real),
+				 ) %>% 
+	summarise(B_met_real_age80   = B_met_real[age == 80],
+						B_shock_real_age80 = B_shock_real[age == 80],
+						B_met_pv           = sum(B_met / (1+dr)^(year - min(year)), na.rm = TRUE),
+						B_shock_pv         = sum(B_shock / (1+dr)^(year - min(year)), na.rm = TRUE),
+						
+						B_met_init   = B_met_real[age == min(age)],
+						B_shock_init = B_met_real[age == min(age)],
+						
+						salary_final_real = unique(salary_final_real),
+						
+						.groups = "drop"
+						)
+
+	
+df_indiv_summary1_misc %<>% 
+		left_join(select(df_simNames_load, sim_name, sim_label, ERCType, policy), by = "sim_name") %>% 
+	  mutate(sim_name_fct = factor(sim_name, df_simNames_load$sim_name)) %>%
+	  arrange(sim_name_fct)
+	  			 
 
 
-xlsx::write.xlsx2(df_tbl_eg1, paste0(here::here(), "/analysis/outputs_analysis/tbl_examples1.xlsx"))
+# benefit at age 80
+df_ben_age80_misc <- 
+  df_indiv_summary1_misc %>% 
+	filter(ERCType %in% c("none", "lowERC")) %>% 
+  left_join(select(df_indiv_slc_misc, row_slc, indiv_label), by = "row_slc") %>% 
+	mutate(indiv_label = factor(indiv_label) %>% fct_inorder() ) %>% 
+	select(sim_name_fct, sim_label, row_slc, B_met_real_age80, B_met_init) %>% 
+	gather(Var, value, -sim_name_fct, -sim_label, -row_slc) %>% 
+	unite("Var", row_slc, Var, sep = ".") %>% 
+	mutate(Var = paste0("i", Var)) %>% 
+	spread(Var, value) %>% 
+	select(-contains("i4."), -`i3.B_met_init`)  %>% 
+  mutate(grp_name = case_when(
+  	str_detect(sim_name_fct, "baseline") ~ "",
+  	str_detect(sim_name_fct, "benCut1|colaCut1") ~ "Aggressive benefit reductions",
+  	str_detect(sim_name_fct, "benCut2|colaCut2") ~ "Moderate benefit reductions"
+  )) %>%
+	relocate(grp_name) %>% 
+	group_by(grp_name)
+
+
+# library(gt)
+
+tbl_ben_age80_misc <- 
+  df_ben_age80_misc %>% 
+	select(-sim_name_fct) %>% 
+	gt %>% 
+	cols_label(
+		sim_label = "",
+    i1.B_met_init       = "Benefit upon retirement at age 60",	
+		i1.B_met_real_age80	= "Benefit at age 80",
+		i2.B_met_init	      = "Benefit upon retirement at age 60",
+		i2.B_met_real_age80	= "Benefit at age 80",
+		i3.B_met_real_age80 = "Benefit at age 80"
+	) %>% 
+	tab_spanner(
+    label = "Young member: Aged 30 and earning $80k at the time of reform",
+    columns = c(i1.B_met_init, i1.B_met_real_age80)
+    ) %>% 
+  tab_spanner(
+    label = "Mid-career member: Aged 45 and earning $95k at the time of reform",
+    columns = c(i2.B_met_init, i2.B_met_real_age80)
+    ) %>% 
+	 tab_spanner(
+    label = "Retiree: Aged 60 and receiving $50k at the time of reform",
+    columns = c(i3.B_met_real_age80)
+    ) %>% 
+	cols_width(
+    sim_label ~ px(200),
+    i3.B_met_real_age80 ~ px(150),
+    everything() ~ px(120)
+  ) %>% 
+	cols_align(
+    align = "left",
+    columns = sim_label
+  ) %>% 
+	cols_align(
+    align = "center",
+    columns = -sim_label
+  ) %>% 
+	fmt_currency(
+		columns = c(-sim_label, -grp_name),
+		decimals = 0) %>% 
+	tab_style(
+    style = list(
+      cell_text(weight = "bold")
+      ),
+    #locations = cells_row_groups()
+  locations = cells_column_spanners()
+	 ) %>% 
+	tab_style(
+    style = list(
+      cell_text(weight = "bold")
+      ),
+  locations = cells_column_labels()
+	) %>% 
+	tab_style(
+    style = list(
+      cell_text(weight = "bold")
+      ),
+   locations = cells_row_groups()
+	 ) %>% 
+	tab_style(
+    style = list(
+      cell_text(weight = "bold")
+      ),
+   locations = cells_title(groups = "title")
+	 ) %>% 
+	
+	tab_options(data_row.padding = px(10)) %>% 
+	tab_header(
+    title = html("Estimated impacts on illustrative BART miscellaneous members"),
+    subtitle = html("Benefits are adjusted for inflation (in 2019 dollars, assuming 2.5% inflation rate);<br>Assuming 7% return every year")
+  ) 
 
 
 
-df_tbl_eg1 %>% 
-  select(!contains("age35."), -type)
-  
+```
 
-
-
-
-
-
-
-## detective work
-{
-df1 <-
-  df_results %>%
-  filter(sim_name %in% c(
-                         "misc2t_colaCut1_lowERC",
-                         "misc2t_benCut1_colaCut1_lowERC",
-                         "sfty2t_colaCut1_lowERC",
-                         "sfty2t_benCut1_colaCut1_lowERC",
-                         "poff2t_colaCut1_lowERC",
-                         "poff2t_benCut1_colaCut1_lowERC"),
-         sim == 0,
-         year <= 2043
-  ) %>%
-  select(sim_name,year, cola_actual)
-
-df1 %>%
-  spread(sim_name, cola_actual)
-#   
-# 
-# df1 <- 
-#   df_results %>% 
-#   filter(sim_name %in% c("misc2t_colaCut1_lowERC", 
-#                          "misc2t_benCut1_colaCut1_lowERC",
-#                          "sfty2t_colaCut1_lowERC", 
-#                          "sfty2t_benCut1_colaCut1_lowERC"),
-#          sim == 0,
-#          year <= 2043
-#   ) %>% 
-#   select(sim_name,year, FR_MA) 
-# 
-# df1 %>% 
-#   spread(sim_name, FR_MA)
-#   
-# 
-# 
-#  df_results %>% 
-#   filter(sim_name %in% c("sfty2t_colaCut1_lowERC", 
-#                          "sfty2t_benCut1_colaCut1_lowERC"),
-#          sim == 0,
-#          year <= 2050
-#   ) %>% 
-#   select(sim_name,year, var = cola_actual) %>% 
-#   spread(sim_name, var) %>% 
-#   as_tibble()
-}
-
+#### Misc members {-}
+```{r}
+tbl_ben_age80_misc
 ```
 
 
@@ -1608,6 +1530,7 @@ df_tbl_impactPlan %>%
   fontsize(size = 12, part = "footer") 
 
 ```
+
 
 
 

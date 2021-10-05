@@ -25,6 +25,7 @@ library(microbenchmark)
 # Tydiverse and other RStudio packages
 library(tidyverse) # loads ggplot2, tibble, tidyr, readr, purrr, dplyr, forcats
 library(knitr)
+library(gt)
 
 options(dplyr.print_min = 100) # default is 10
 options(dplyr.print_max = 100) # default is 20
