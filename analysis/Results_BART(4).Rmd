@@ -729,7 +729,7 @@ For all misc members above: retirement age is 60, entry age is 30.
 **Safety members**:
 
  1. Safety early-career active: age 25 (PEPRA, entire career is affected)
- 2. Safety mid-career ative:    age 40 (Classic, half of career is affected)
+ 2. Safety mid-career active:    age 40 (Classic, half of career is affected)
  3. Safety retiree:             age 55
 
 For all safety members above: retirement age is 55, entry age is 25.
